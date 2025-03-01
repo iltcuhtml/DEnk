@@ -1,0 +1,11 @@
+obj/
+
+test/
+
+*.txt
+*.s
+*.exe
+
+.vscode/
+
+else/
