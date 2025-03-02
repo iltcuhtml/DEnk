@@ -1,8 +1,8 @@
 CC = gcc
 PP = g++
 
-C_SOURCE = src/c
-H_SOURCE = src/h
+C_SOURCE = src
+H_SOURCE = src
 TEST_SOURCE = test
 
 OBJECT = obj
@@ -18,13 +18,13 @@ $(OBJECT):
 $(EXECUTABLE):
 	mkdir $(EXECUTABLE)
 
-# all -> hl
-all: $(OBJECT)/main.o | $(EXECUTABLE)/hl
+# all -> jschlang
+all: $(OBJECT)/main.o | $(EXECUTABLE)/jschlang
 
-# hl
-$(EXECUTABLE)/hl: $(OBJECT)/main.o | $(EXECUTABLE)
-	$(PP) $(CFLAGS) $(OBJECT)/main.o $(C_GAME_LIBRARY_FILES) -o $(EXECUTABLE)/hl
-	strip $(EXECUTABLE)/hl.exe
+# jschlang
+$(EXECUTABLE)/jschlang: $(OBJECT)/main.o | $(EXECUTABLE)
+	$(PP) $(CFLAGS) $(OBJECT)/main.o $(C_GAME_LIBRARY_FILES) -o $(EXECUTABLE)/jschlang
+	strip $(EXECUTABLE)/jschlang.exe
 
 # main.cpp
 $(OBJECT)/main.o: $(C_SOURCE)/main.cpp | $(OBJECT)
