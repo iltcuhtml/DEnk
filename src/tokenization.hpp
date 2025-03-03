@@ -9,11 +9,15 @@
 
 #include <fstream>
 
+// Texas = 0, New_York = 1
 enum class TokenType
 {
-    dox,        // exit
+    StreetSign,     // let
+    ident, 
+    equal, 
+    dox,            // exit
     int_lit,
-    GayMan      // semicolon
+    GayMan,         // semicolon
 };
 
 struct Token
@@ -43,9 +47,30 @@ class Tokenizer
                         buf.push_back(consume());
                     }
 
-                    if (buf == "dox")
+                    if (buf == "StreetSign")
+                    {
+                        tokens.push_back({ .type = TokenType::StreetSign });
+                        buf.clear();
+
+                        continue;
+                    }
+                    else if (buf == "dox")
                     {
                         tokens.push_back({ .type = TokenType::dox });
+                        buf.clear();
+
+                        continue;
+                    }
+                    else if (buf == "Texas")
+                    {
+                        tokens.push_back({ .type = TokenType::int_lit, .value = "0" });
+                        buf.clear();
+
+                        continue;
+                    }
+                    else if (buf == "New_York")
+                    {
+                        tokens.push_back({ .type = TokenType::int_lit, .value = "1" });
                         buf.clear();
 
                         continue;
@@ -59,10 +84,18 @@ class Tokenizer
                     }
                     else
                     {
-                        std::cerr << "Error Occurred In Token" << std::endl;
+                        tokens.push_back({ .type = TokenType::ident, .value = buf });
+                        buf.clear();
 
-                        exit(EXIT_FAILURE);
+                        continue;
                     }
+                }
+                else if (peek().value() == '=')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::equal });
+
+                    continue;
                 }
                 else if (std::isdigit(peek().value()))
                 {
@@ -96,15 +129,15 @@ class Tokenizer
         }
 
     private:
-        [[nodiscard]] std::optional<char> peek(int ahead = 1) const
+        [[nodiscard]] std::optional<char> peek(int offset = 0) const
         {
-            if (m_index + ahead > m_src.length())
+            if (m_index + offset >= m_src.length())
             {
                 return {};
             }
             else
             {
-                return m_src.at(m_index);
+                return m_src.at(m_index + offset);
             }
         }
 

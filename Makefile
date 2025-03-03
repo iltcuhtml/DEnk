@@ -10,8 +10,6 @@ EXECUTABLE = exe
 
 CFLAGS = -Wall -Werror -Wextra -O3 -I$(H_SOURCE) -static
 
-C_GAME_LIBRARY_FILES = -luser32 -lgdi32
-
 $(OBJECT):
 	mkdir $(OBJECT)
 

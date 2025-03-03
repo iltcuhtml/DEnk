@@ -7,19 +7,46 @@
 #include <vector>
 
 #include <optional>
+#include <variant>
 
 #include <fstream>
 
 #include "tokenization.hpp"
 
-struct NodeExpr
+struct NodeExprIntLit
 {
     Token int_lit;
 };
 
-struct NodeDox
+struct NodeExprIdent
+{
+    Token ident;
+};
+
+struct NodeExpr
+{
+    std::variant<NodeExprIntLit, NodeExprIdent> var;
+};
+
+struct NodeStmtDox
 {
     NodeExpr expr;
+};
+
+struct NodeStmtStreetSign
+{
+    Token ident;
+    NodeExpr expr;
+};
+
+struct NodeStmt
+{
+    std::variant<NodeStmtDox, NodeStmtStreetSign> var;
+};
+
+struct NodeProg
+{
+    std::vector<NodeStmt> stmts;
 };
 
 class Parser
@@ -31,7 +58,11 @@ class Parser
         {
             if (peek().has_value() && peek().value().type == TokenType::int_lit)
             {
-                return NodeExpr{ .int_lit = consume() };
+                return NodeExpr { .var = NodeExprIntLit { .int_lit = consume() } };
+            }
+            else if (peek().has_value() && peek().value().type == TokenType::ident)
+            {
+                return NodeExpr { .var = NodeExprIdent {.ident = consume() } };
             }
             else
             {
@@ -39,55 +70,107 @@ class Parser
             }
         }
 
-        std::optional<NodeDox> parse()
+        std::optional<NodeStmt> parse_stmt()
         {
-            std::optional<NodeDox> dox_node;
+            if (peek().has_value() && peek().value().type == TokenType::StreetSign
+                 && peek(1).has_value() && peek(1).value().type == TokenType::ident
+                 && peek(2).has_value() && peek(2).value().type == TokenType::equal)
+            {
+                consume();
+                NodeStmtStreetSign stmt_StreetSign;
+                consume();
+
+                if (auto expr = parse_expr())
+                {
+                    stmt_StreetSign = NodeStmtStreetSign { .ident = consume(), .expr = expr.value() };
+                }
+                else
+                {
+                    std::cerr << "Invalid Expression" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+
+                if (peek().has_value() && peek().value().type == TokenType::GayMan)
+                {
+                    consume();
+                }
+                else
+                {
+                    std::cerr << "Token 'GayMan' Is Expected" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+
+                return NodeStmt { .var = stmt_StreetSign };
+            }
+            else if (peek().value().type == TokenType::dox)
+            {
+                consume();
+
+                NodeStmtDox stmt_dox;
+                
+                if (auto node_expr = parse_expr())
+                {
+                    stmt_dox = NodeStmtDox { .expr = node_expr.value() };
+                }
+                else
+                {
+                    std::cerr << "Invalid Expression" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+
+                if (peek().has_value() && peek().value().type == TokenType::GayMan)
+                {
+                    consume();
+                }
+                else
+                {
+                    std::cerr << "Token 'GayMan' Is Expected" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+
+                return NodeStmt { .var = stmt_dox };
+            }
+            else
+            {
+                return {};
+            }
+        }
+
+        std::optional<NodeProg> parse_prog()
+        {
+            NodeProg prog;
 
             while (peek().has_value())
             {
-                if (peek().value().type == TokenType::dox)
+                if (auto stmt = parse_stmt())
                 {
-                    consume();
-
-                    if (auto node_expr = parse_expr())
-                    {
-                        dox_node = NodeDox{ .expr = node_expr.value() };
-                    }
-                    else
-                    {
-                        std::cerr << "Invalid Expression" << std::endl;
-                        
-                        exit(EXIT_FAILURE);
-                    }
-
-                    if (peek().has_value() && peek().value().type == TokenType::GayMan)
-                    {
-                        consume();
-                    }
-                    else
-                    {
-                        std::cerr << "Invalid Expression" << std::endl;
-                        
-                        exit(EXIT_FAILURE);
-                    }
+                    prog.stmts.push_back(stmt.value());
+                }
+                else
+                {
+                    std::cerr << "Invalid Statement" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
                 }
             }
 
-            m_index = 0;
-
-            return dox_node;
+            return prog;
         }
 
     private:
-        [[nodiscard]] std::optional<Token> peek(int ahead = 1) const
+        [[nodiscard]] std::optional<Token> peek(int offset = 0) const
         {
-            if (m_index + ahead > m_tokens.size())
+            if (m_index + offset >= m_tokens.size())
             {
                 return {};
             }
             else
             {
-                return m_tokens.at(m_index);
+                return m_tokens.at(m_index + offset);
             }
         }
         

@@ -36,22 +36,22 @@ int main(int argc, char* argv[])
     std::vector<Token> tokens = tokenizer.tokenize();
 
     Parser parser(std::move(tokens));
-    std::optional<NodeDox> tree = parser.parse();
+    std::optional<NodeProg> prog = parser.parse_prog();
 
-    if (!tree.has_value())
+    if (!prog.has_value())
     {
-        std::cerr << "No 'dox' Statement Found" << std::endl;
+        std::cerr << "Invalid Program" << std::endl;
 
         return EXIT_FAILURE;
     }
 
-    Generator generator(tree.value());
+    Generator generator(prog.value());
 
     {
         system("mkdir out");
 
         std::fstream file("out/out.asm", std::ios::out);
-        file << generator.generate();
+        file << generator.gen_prog();
     }
 
     system("nasm -f win64 out/out.asm -o out/out.o");
