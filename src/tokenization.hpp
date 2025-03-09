@@ -61,20 +61,6 @@ class Tokenizer
 
                         continue;
                     }
-                    else if (buf == "Texas")
-                    {
-                        tokens.push_back({ .type = TokenType::int_lit, .value = "0" });
-                        buf.clear();
-
-                        continue;
-                    }
-                    else if (buf == "New_York")
-                    {
-                        tokens.push_back({ .type = TokenType::int_lit, .value = "1" });
-                        buf.clear();
-
-                        continue;
-                    }
                     else if (buf == "GayMan")
                     {
                         tokens.push_back({ .type = TokenType::GayMan });

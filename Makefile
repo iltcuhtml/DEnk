@@ -8,7 +8,7 @@ TEST_SOURCE = test
 OBJECT = obj
 EXECUTABLE = exe
 
-CFLAGS = -Wall -Werror -Wextra -O3 -I$(H_SOURCE) -static
+CFLAGS = -std=c++23 -Wall -Werror -Wextra -O3 -I$(H_SOURCE) -static
 
 $(OBJECT):
 	mkdir $(OBJECT)
@@ -28,5 +28,8 @@ $(EXECUTABLE)/jschlang: $(OBJECT)/main.o | $(EXECUTABLE)
 $(OBJECT)/main.o: $(C_SOURCE)/main.cpp | $(OBJECT)
 	$(PP) $(CFLAGS) -c $(C_SOURCE)/main.cpp -o $(OBJECT)/main.o
 
-clean:
+obj_clean:
 	del /Q obj\*
+
+out_clean:
+	del /Q out

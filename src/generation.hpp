@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <optional>
+#include <unordered_map>
 
 #include <fstream>
 
@@ -27,13 +28,25 @@ class Generator
                 void operator()(const NodeExprIntLit& expr_int_lit) const
                 {
                     gen->m_output << "    mov rax, " << expr_int_lit.int_lit.value.value() << "\n";
-                    gen->m_output << "    push rax\n";
+                    gen->push("rax");
                 }
 
-                // void operator()(const NodeExprIdent& expr_ident) const
-                // {
-                //     // ;
-                // }
+                void operator()(const NodeExprIdent& expr_ident) const
+                {
+                    if (!gen->m_vars.contains(expr_ident.ident.value.value()))
+                    {
+                        std::cerr << "Undeclared Identifier : " << expr_ident.ident.value.value() << std::endl;
+
+                        exit(EXIT_FAILURE);
+                    }
+
+                    const auto& var = gen->m_vars.at(expr_ident.ident.value.value());
+
+                    std::stringstream offset;
+                    offset << "QWORD [rsp + " << (gen->m_stack_size - var.stack_loc - 1) * 8 << "]\n";
+
+                    gen->push(offset.str());
+                }
             };
             
             ExprVisitor visitor { .gen = this };
@@ -51,15 +64,23 @@ class Generator
                     gen->gen_expr(stmt_dox.expr);
 
                     gen->m_output << "    ; exit\n";
-                    gen->m_output << "    pop rcx\n";
+                    gen->pop("rcx");
                     gen->m_output << "    call ExitProcess\n";
                     gen->m_output << "    ; /exit\n\n";
                 }
 
-                // void operator()(const NodeStmtStreetSign& stmt_StreetSign) const
-                // {
-                //     // ;
-                // }
+                void operator()(const NodeStmtStreetSign& stmt_StreetSign) const
+                {
+                    if (gen->m_vars.contains(stmt_StreetSign.ident.value.value()))
+                    {
+                        std::cerr << "Identifier Is Already Used : " << stmt_StreetSign.ident.value.value() << std::endl;
+
+                        exit(EXIT_FAILURE);
+                    }
+
+                    gen->m_vars.insert({ stmt_StreetSign.ident.value.value(), Var { .stack_loc = gen->m_stack_size } });
+                    gen->gen_expr(stmt_StreetSign.expr);
+                }
             };
             
             StmtVisitor visitor { .gen = this };
@@ -75,23 +96,42 @@ class Generator
             m_output << "    extern ExitProcess\n\n";
             
             m_output << "main:\n";
-            m_output << "    sub rsp, 40\n\n";
+            m_output << "    push rbp\n";
+            m_output << "    mov rbp, rsp\n";
+            m_output << "    sub rsp, 16\n\n";
 
             for (const NodeStmt& stmt : m_prog.stmts)
             {
                 gen_stmt(stmt);
             }
 
-            m_output << "    move rcx, 0\n";
-            m_output << "    call ExitProcess\n\n";
-
-            m_output << "    add rsp, 40\n";
-            m_output << "    ret";
+            m_output << "    mov rcx, 0\n";
+            m_output << "    call ExitProcess";
 
             return m_output.str();
         }
     
     private:
+        void push(const std::string& reg)
+        {
+            m_output << "    push " << reg << "\n";
+            m_stack_size++;
+        }
+
+        void pop(const std::string& reg)
+        {
+            m_output << "    pop " << reg << "\n";
+            m_stack_size--;
+        }
+
+        struct Var
+        {
+            size_t stack_loc;
+        };
+
         const NodeProg m_prog;
         std::stringstream m_output;
+
+        size_t m_stack_size = 0;
+        std::unordered_map<std::string, Var> m_vars;
 };

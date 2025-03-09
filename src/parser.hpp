@@ -77,16 +77,16 @@ class Parser
                  && peek(2).has_value() && peek(2).value().type == TokenType::equal)
             {
                 consume();
-                NodeStmtStreetSign stmt_StreetSign;
+                auto stmt_StreetSign = NodeStmtStreetSign { .ident = consume(), .expr = {} };
                 consume();
 
                 if (auto expr = parse_expr())
                 {
-                    stmt_StreetSign = NodeStmtStreetSign { .ident = consume(), .expr = expr.value() };
+                    stmt_StreetSign.expr = expr.value();
                 }
                 else
                 {
-                    std::cerr << "Invalid Expression" << std::endl;
+                    std::cerr << "Invalid 'StreetSign' Expression" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
@@ -116,7 +116,7 @@ class Parser
                 }
                 else
                 {
-                    std::cerr << "Invalid Expression" << std::endl;
+                    std::cerr << "Invalid 'dox' Expression" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
