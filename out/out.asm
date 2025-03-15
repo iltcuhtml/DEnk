@@ -7,16 +7,18 @@ section .text
 main:
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 32
 
-    mov rax, 0
-    push rax
-    mov rax, 1
-    push rax
-    push QWORD [rsp + 8]
+    mov QWORD [rbp - 8], 69
+    mov QWORD [rbp - 16], 74
+    mov rax, QWORD [rbp - 8]
+    mov QWORD [rbp - 24], rax
+    mov rax, QWORD [rbp - 24]
+    mov QWORD [rbp - 32], rax
 
     ; exit
-    pop rcx
+    mov rax, QWORD [rbp - 32]
+    mov rcx, rax
     call ExitProcess
     ; /exit
 

@@ -1,5 +1,6 @@
-StreetSign Texas = 0 GayMan
-StreetSign NewYork = 1 GayMan
-dox Texas GayMan
+StreetSign Texas = 69 GayMan
+StreetSign NewYork = 74 GayMan
 
-// TODO : 변수를 스택에 저장하는 것에서 주소에 저장하는 것으로 변경하기
+StreetSign Austin = Texas GayMan
+
+dox Austin GayMan
