@@ -1,3 +1,6 @@
 StreetSign Texas = 0 GayMan
+StreetSign Austin = Texas GayMan
+
 complain "WORLD!" GayMan
-dox Texas GayMan
+
+dox Austin GayMan

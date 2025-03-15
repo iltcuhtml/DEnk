@@ -1,7 +1,6 @@
 section .text
     global main
 
-    extern printf
     extern ExitProcess
 
 main:
