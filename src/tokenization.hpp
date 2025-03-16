@@ -15,6 +15,10 @@ enum class TokenType
     StreetSign,     // let
     ident, 
     equal, 
+    plus, 
+    star, 
+    open_paren, 
+    close_paren, 
     dox,            // exit
     int_lit,
     GayMan,         // semicolon
@@ -29,20 +33,23 @@ struct Token
 class Tokenizer
 {
     public:
-        inline explicit Tokenizer(const std::string& src) : m_src(std::move(src)) {}
+        inline explicit Tokenizer(const std::string& src)
+            : m_src(std::move(src))
+        {
+        }
 
         inline std::vector<Token> tokenize()
         {
             std::vector<Token> tokens;
             std::string buf;
 
-            while (peek().has_value())
+            while (peek(1).has_value())
             {
-                if (std::isalpha(peek().value()))
+                if (std::isalpha(peek(1).value()))
                 {
                     buf.push_back(consume());
 
-                    while (peek().has_value() && std::isalnum(peek().value()))
+                    while (peek(1).has_value() && std::isalnum(peek(1).value()))
                     {
                         buf.push_back(consume());
                     }
@@ -76,18 +83,32 @@ class Tokenizer
                         continue;
                     }
                 }
-                else if (peek().value() == '=')
+                else if (peek(1).value() == '=')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::equal });
 
                     continue;
                 }
-                else if (std::isdigit(peek().value()))
+                else if (peek(1).value() == '+')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::plus });
+
+                    continue;
+                }
+                else if (peek(1).value() == '*')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::star });
+
+                    continue;
+                }
+                else if (std::isdigit(peek(1).value()))
                 {
                     buf.push_back(consume());
 
-                    while (peek().has_value() && std::isdigit(peek().value()))
+                    while (peek(1).has_value() && std::isdigit(peek(1).value()))
                     {
                         buf.push_back(consume());
                     }
@@ -95,7 +116,7 @@ class Tokenizer
                     tokens.push_back({ .type = TokenType::int_lit, .value = buf });
                     buf.clear();
                 }
-                else if (std::isspace(peek().value()))
+                else if (std::isspace(peek(1).value()))
                 {
                     consume();
 
@@ -115,15 +136,15 @@ class Tokenizer
         }
 
     private:
-        [[nodiscard]] std::optional<char> peek(int offset = 0) const
+        [[nodiscard]] std::optional<char> peek(const uint8_t& offset) const
         {
-            if (m_index + offset >= m_src.length())
+            if (m_index + (offset - 1) >= m_src.length())
             {
-                return {};
+                return std::nullopt;
             }
             else
             {
-                return m_src.at(m_index + offset);
+                return m_src.at(m_index + (offset - 1));
             }
         }
 

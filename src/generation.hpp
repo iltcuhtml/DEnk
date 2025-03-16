@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <sstream>
 #include <vector>
+#include <cassert>
 
 #include <optional>
 #include <unordered_map>
@@ -18,72 +19,103 @@
 class Generator
 {
     public:
-        inline explicit Generator(NodeProg prog) : m_prog(std::move(prog)) {}
+        inline explicit Generator(NodeProg prog)
+            : m_prog(std::move(prog))
+        {
+        }
 
-        void gen_expr(const NodeExpr& expr)
+        void gen_term(const NodeTerm* term)
+        {
+            struct TermVisitor
+            {
+                Generator* gen;
+
+                void operator()(const NodeTermIntLit* term_int_lit) const
+                {
+                    gen->mov_Var((gen->m_mem_size + 1) * 8, term_int_lit->int_lit.value.value());
+                }
+
+                void operator()(const NodeTermIdent* term_ident) const
+                {
+                    if (!gen->m_vars.contains(term_ident->ident.value.value()))
+                    {
+                        std::cerr << "Undeclared Identifier : " << term_ident->ident.value.value() << std::endl;
+
+                        exit(EXIT_FAILURE);
+                    }
+
+                    const auto& var = gen->m_vars.at(term_ident->ident.value.value());
+
+                    gen->get_Var("rax", (var.mem_loc + 1) * 8);
+                    gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
+                }
+            };
+
+            TermVisitor visitor { .gen = this };
+            std::visit(visitor, term->var);
+        }
+
+        void gen_expr(const NodeExpr* expr)
         {
             struct ExprVisitor
             {
                 Generator* gen;
 
-                void operator()(const NodeExprIntLit& expr_int_lit) const
+                void operator()(const NodeTerm* term) const
                 {
-                    gen->mov_Var((gen->m_mem_size + 1) * 8, expr_int_lit.int_lit.value.value());
+                    gen->gen_term(term);
                 }
 
-                void operator()(const NodeExprIdent& expr_ident) const
+                void operator()(const NodeBinExpr* bin_expr) const
                 {
-                    if (!gen->m_vars.contains(expr_ident.ident.value.value()))
-                    {
-                        std::cerr << "Undeclared Identifier : " << expr_ident.ident.value.value() << std::endl;
+                    gen->gen_expr(bin_expr->var->lhs);
+                    gen->gen_expr(bin_expr->var->rhs);
 
-                        exit(EXIT_FAILURE);
-                    }
+                    gen->use_Var("rax", (gen->m_mem_size - 1) * 8);
+                    gen->use_Var("rbx", gen->m_mem_size * 8);
 
-                    const auto& var = gen->m_vars.at(expr_ident.ident.value.value());
-
-                    gen->get_Var((var.mem_loc + 1) * 8);
+                    gen->m_output << "    add rax, rbx\n";
+                    
                     gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
                 }
             };
             
             ExprVisitor visitor { .gen = this };
-            std::visit(visitor, expr.var);
+            std::visit(visitor, expr->var);
         }
         
-        void gen_stmt(const NodeStmt& stmt)
+        void gen_stmt(const NodeStmt* stmt)
         {
             struct StmtVisitor
             {
                 Generator* gen;
 
-                void operator()(const NodeStmtDox& stmt_dox) const
+                void operator()(const NodeStmtDox* stmt_dox) const
                 {
-                    gen->gen_expr(stmt_dox.expr);
+                    gen->gen_expr(stmt_dox->expr);
 
                     gen->temp << "\n    ; exit\n";
-                    gen->get_Var(gen->m_mem_size * 8);
-                    gen->temp << "    mov rcx, rax\n";
+                    gen->use_Var("rcx", gen->m_mem_size * 8);
                     gen->temp << "    call ExitProcess\n";
                     gen->temp << "    ; /exit\n\n";
                 }
 
-                void operator()(const NodeStmtStreetSign& stmt_StreetSign) const
+                void operator()(const NodeStmtStreetSign* stmt_StreetSign) const
                 {
-                    if (gen->m_vars.contains(stmt_StreetSign.ident.value.value()))
+                    if (gen->m_vars.contains(stmt_StreetSign->ident.value.value()))
                     {
-                        std::cerr << "Identifier Is Already Used : " << stmt_StreetSign.ident.value.value() << std::endl;
+                        std::cerr << "Identifier Is Already Used : " << stmt_StreetSign->ident.value.value() << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
 
-                    gen->m_vars.insert({ stmt_StreetSign.ident.value.value(), Var { .mem_loc = gen->m_mem_size } });
-                    gen->gen_expr(stmt_StreetSign.expr);
+                    gen->m_vars.insert({ stmt_StreetSign->ident.value.value(), Var { .mem_loc = gen->m_mem_size } });
+                    gen->gen_expr(stmt_StreetSign->expr);
                 }
             };
             
             StmtVisitor visitor { .gen = this };
-            std::visit(visitor, stmt.var);
+            std::visit(visitor, stmt->var);
         }
 
         [[nodiscard]] std::string gen_prog()
@@ -99,12 +131,12 @@ class Generator
             m_output << "    mov rbp, rsp\n";
             m_output << "    sub rsp, ";
 
-            for (const NodeStmt& stmt : m_prog.stmts)
+            for (const NodeStmt* stmt : m_prog.stmts)
             {
                 gen_stmt(stmt);
             }
 
-            m_output << ceil(static_cast<float>(m_mem_size + m_stack_size) / 2) * 16 << "\n\n";
+            m_output << ceil(static_cast<float>(m_size_counter) / 2) * 16 << "\n\n";
 
             m_output << temp.rdbuf();
 
@@ -118,12 +150,15 @@ class Generator
         void push(const std::string& reg)
         {
             temp << "    push " << reg << "\n";
+            
             m_stack_size++;
+            m_size_counter++;
         }
 
         void pop(const std::string& reg)
         {
             temp << "    pop " << reg << "\n";
+            
             m_stack_size--;
         }
 
@@ -131,12 +166,21 @@ class Generator
         void mov_Var(const uint64_t& mem_loc, const std::string& value)
         {
             temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
+            
             m_mem_size++;
+            m_size_counter++;
         }
 
-        void get_Var(const uint64_t& mem_loc)
+        void use_Var(const std::string& reg, const uint64_t& mem_loc)
         {
-            temp << "    mov rax, QWORD [rbp - " << mem_loc << "]" << "\n";
+            temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+            
+            m_mem_size--;
+        }
+
+        void get_Var(const std::string& reg, const uint64_t& mem_loc)
+        {
+            temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
         }
 
         struct Var
@@ -150,6 +194,8 @@ class Generator
 
         size_t m_stack_size = 0;
         size_t m_mem_size = 0;
+
+        size_t m_size_counter = 0;
 
         std::unordered_map<std::string, Var> m_vars;
 };
