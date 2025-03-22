@@ -71,10 +71,10 @@ class Generator
                     gen->gen_expr(bin_expr->var->lhs);
                     gen->gen_expr(bin_expr->var->rhs);
 
-                    gen->use_Var("rax", (gen->m_mem_size - 1) * 8);
-                    gen->use_Var("rbx", gen->m_mem_size * 8);
+                    gen->use_Var("rdx", (gen->m_mem_size - 1) * 8);
+                    gen->use_Var("rax", (gen->m_mem_size + 1) * 8);
 
-                    gen->m_output << "    add rax, rbx\n";
+                    gen->m_temp << "    add rax, rdx\n";
                     
                     gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
                 }
@@ -94,10 +94,10 @@ class Generator
                 {
                     gen->gen_expr(stmt_dox->expr);
 
-                    gen->temp << "\n    ; exit\n";
+                    gen->m_temp << "\n    ; exit\n";
                     gen->use_Var("rcx", gen->m_mem_size * 8);
-                    gen->temp << "    call ExitProcess\n";
-                    gen->temp << "    ; /exit\n\n";
+                    gen->m_temp << "    call ExitProcess\n";
+                    gen->m_temp << "    ; /exit\n\n";
                 }
 
                 void operator()(const NodeStmtStreetSign* stmt_StreetSign) const
@@ -138,7 +138,7 @@ class Generator
 
             m_output << ceil(static_cast<float>(m_size_counter) / 2) * 16 << "\n\n";
 
-            m_output << temp.rdbuf();
+            m_output << m_temp.rdbuf();
 
             m_output << "    mov rcx, 0\n";
             m_output << "    call ExitProcess";
@@ -149,7 +149,7 @@ class Generator
     private:
         void push(const std::string& reg)
         {
-            temp << "    push " << reg << "\n";
+            m_temp << "    push " << reg << "\n";
             
             m_stack_size++;
             m_size_counter++;
@@ -157,7 +157,7 @@ class Generator
 
         void pop(const std::string& reg)
         {
-            temp << "    pop " << reg << "\n";
+            m_temp << "    pop " << reg << "\n";
             
             m_stack_size--;
         }
@@ -165,7 +165,7 @@ class Generator
         // value can be a register
         void mov_Var(const uint64_t& mem_loc, const std::string& value)
         {
-            temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
+            m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
             
             m_mem_size++;
             m_size_counter++;
@@ -173,14 +173,14 @@ class Generator
 
         void use_Var(const std::string& reg, const uint64_t& mem_loc)
         {
-            temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
             
             m_mem_size--;
         }
 
         void get_Var(const std::string& reg, const uint64_t& mem_loc)
         {
-            temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
         }
 
         struct Var
@@ -189,7 +189,7 @@ class Generator
         };
 
         const NodeProg m_prog;
-        std::stringstream temp;
+        std::stringstream m_temp;
         std::stringstream m_output;
 
         size_t m_stack_size = 0;

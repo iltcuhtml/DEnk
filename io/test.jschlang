@@ -1,6 +1,6 @@
-StreetSign Texas = 69 GayMan
+StreetSign Texas = 6900 GayMan
 StreetSign NewYork = 74 GayMan
 
-StreetSign Austin = Texas GayMan
+StreetSign Austin = Texas + 69 + 5 GayMan
 
 dox Austin GayMan
