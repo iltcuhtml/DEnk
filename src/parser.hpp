@@ -157,14 +157,12 @@ class Parser
 
         std::optional<NodeStmt*> parse_stmt()
         {
-            if (peek(1).has_value() && peek(1).value().type == TokenType::StreetSign
-                 && peek(2).has_value() && peek(2).value().type == TokenType::ident
-                 && peek(3).has_value() && peek(3).value().type == TokenType::equal)
+            if (try_consume(1, TokenType::StreetSign))
             {
-                consume();
                 auto stmt_StreetSign = m_allocator.alloc<NodeStmtStreetSign>();
-                stmt_StreetSign->ident = consume();
-                consume();
+                stmt_StreetSign->ident = try_consume(1, TokenType::ident, "Identifier Is Expected");
+
+                try_consume(1, TokenType::equal, "Token '=' Is Expected");
 
                 if (auto expr = parse_expr())
                 {

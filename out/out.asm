@@ -9,10 +9,11 @@ main:
     sub rsp, 64
 
     mov QWORD [rbp - 8], 6900
-    mov QWORD [rbp - 16], 74
+    mov QWORD [rbp - 16], 69
     mov rax, QWORD [rbp - 8]
     mov QWORD [rbp - 24], rax
-    mov QWORD [rbp - 32], 69
+    mov rax, QWORD [rbp - 16]
+    mov QWORD [rbp - 32], rax
     mov QWORD [rbp - 40], 5
     mov rdx, QWORD [rbp - 32]
     mov rax, QWORD [rbp - 40]
