@@ -55,6 +55,74 @@ class Generator
             std::visit(visitor, term->var);
         }
 
+        void gen_bin_expr(const NodeBinExpr* bin_expr)
+        {
+            struct BinExprVisitor
+            {
+                Generator* gen;
+
+                void operator()(const NodeBinExprAdd* add) const
+                {
+                    gen->m_temp << "\n    ; add\n";
+
+                    gen->gen_expr(add->rhs);
+                    gen->gen_expr(add->lhs);
+
+                    gen->consume_Var("rax", gen->m_mem_size * 8);
+                    gen->m_temp << "    add rax, QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
+                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+
+                    gen->m_temp << "    ; /add\n\n";
+                }
+
+                void operator()(const NodeBinExprSub* sub) const
+                {
+                    gen->m_temp << "\n    ; sub\n";
+
+                    gen->gen_expr(sub->rhs);
+                    gen->gen_expr(sub->lhs);
+
+                    gen->consume_Var("rax", gen->m_mem_size * 8);
+                    gen->m_temp << "    sub rax, QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
+                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+
+                    gen->m_temp << "    ; /sub\n\n";
+                }
+
+                void operator()(const NodeBinExprMul* mul) const
+                {
+                    gen->m_temp << "\n    ; mul\n";
+
+                    gen->gen_expr(mul->rhs);
+                    gen->gen_expr(mul->lhs);
+
+                    gen->consume_Var("rax", gen->m_mem_size * 8);
+                    gen->m_temp << "    imul QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
+                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+
+                    gen->m_temp << "    ; /mul\n\n";
+                }
+
+                void operator()(const NodeBinExprDiv* div) const
+                {
+                    gen->m_temp << "\n    ; div\n";
+
+                    gen->gen_expr(div->rhs);
+                    gen->gen_expr(div->lhs);
+
+                    gen->consume_Var("rax", gen->m_mem_size * 8);
+                    gen->m_temp << "    cqo\n";
+                    gen->m_temp << "    idiv QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
+                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+
+                    gen->m_temp << "    ; /div\n\n";
+                }
+            };
+
+            BinExprVisitor visitor { .gen = this };
+            std::visit(visitor, bin_expr->var);
+        }
+
         void gen_expr(const NodeExpr* expr)
         {
             struct ExprVisitor
@@ -68,15 +136,7 @@ class Generator
 
                 void operator()(const NodeBinExpr* bin_expr) const
                 {
-                    gen->gen_expr(bin_expr->var->lhs);
-                    gen->gen_expr(bin_expr->var->rhs);
-
-                    gen->use_Var("rdx", (gen->m_mem_size - 1) * 8);
-                    gen->use_Var("rax", (gen->m_mem_size + 1) * 8);
-
-                    gen->m_temp << "    add rax, rdx\n";
-                    
-                    gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
+                    gen->gen_bin_expr(bin_expr);
                 }
             };
             
@@ -92,11 +152,13 @@ class Generator
 
                 void operator()(const NodeStmtDox* stmt_dox) const
                 {
+                    gen->m_temp << "\n    ; exit\n";
+                    
                     gen->gen_expr(stmt_dox->expr);
 
-                    gen->m_temp << "\n    ; exit\n";
-                    gen->use_Var("rcx", gen->m_mem_size * 8);
+                    gen->consume_Var("rcx", gen->m_mem_size * 8);
                     gen->m_temp << "    call ExitProcess\n";
+
                     gen->m_temp << "    ; /exit\n\n";
                 }
 
@@ -136,7 +198,7 @@ class Generator
                 gen_stmt(stmt);
             }
 
-            m_output << ceil(static_cast<float>(m_size_counter) / 2) * 16 << "\n\n";
+            m_output << ceil(static_cast<float>(m_max_stack_size + m_max_mem_size) / 2) * 16 << "\n\n";
 
             m_output << m_temp.rdbuf();
 
@@ -152,7 +214,11 @@ class Generator
             m_temp << "    push " << reg << "\n";
             
             m_stack_size++;
-            m_size_counter++;
+
+            if (m_max_stack_size < m_stack_size)
+            {
+                m_max_stack_size = m_stack_size;
+            }
         }
 
         void pop(const std::string& reg)
@@ -168,19 +234,29 @@ class Generator
             m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
             
             m_mem_size++;
-            m_size_counter++;
+
+            if (m_max_mem_size < m_mem_size)
+            {
+                m_max_mem_size = m_mem_size;
+            }
         }
 
-        void use_Var(const std::string& reg, const uint64_t& mem_loc)
+        // value can be a register
+        void overwrite_Var(const uint64_t& mem_loc, const std::string& value)
         {
-            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
-            
-            m_mem_size--;
+            m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
         }
 
         void get_Var(const std::string& reg, const uint64_t& mem_loc)
         {
             m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+        }
+
+        void consume_Var(const std::string& reg, const uint64_t& mem_loc)
+        {
+            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+
+            m_mem_size--;
         }
 
         struct Var
@@ -195,7 +271,8 @@ class Generator
         size_t m_stack_size = 0;
         size_t m_mem_size = 0;
 
-        size_t m_size_counter = 0;
+        size_t m_max_stack_size = 0;
+        size_t m_max_mem_size = 0;
 
         std::unordered_map<std::string, Var> m_vars;
 };

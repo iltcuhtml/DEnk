@@ -16,13 +16,32 @@ enum class TokenType
     ident, 
     equal, 
     plus, 
+    minus, 
     star, 
+    slash, 
     open_paren, 
     close_paren, 
     dox,            // exit
     int_lit,
     GayMan,         // semicolon
 };
+
+std::optional<uint8_t> bin_prec(TokenType type)
+{
+    switch (type)
+    {
+        case TokenType::plus:
+        case TokenType::minus:
+            return 0;
+
+        case TokenType::star:
+        case TokenType::slash:
+            return 1;
+        
+        default:
+            return std::nullopt;
+    }
+}
 
 struct Token
 {
@@ -97,10 +116,38 @@ class Tokenizer
 
                     continue;
                 }
+                else if (peek(1).value() == '-')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::minus });
+
+                    continue;
+                }
                 else if (peek(1).value() == '*')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::star });
+
+                    continue;
+                }
+                else if (peek(1).value() == '/')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::slash });
+
+                    continue;
+                }
+                else if (peek(1).value() == '(')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::open_paren });
+
+                    continue;
+                }
+                else if (peek(1).value() == ')')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::close_paren });
 
                     continue;
                 }

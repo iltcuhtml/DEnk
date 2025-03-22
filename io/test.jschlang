@@ -1,6 +1,6 @@
-StreetSign Texas = 6900 GayMan
-StreetSign NewYork = 69 GayMan
+StreetSign Texas = 3 + 5 * 24 / 6 + 9 GayMan
+StreetSign NewYork = 7 - 2 GayMan
 
-StreetSign Austin = Texas + NewYork + 5 GayMan
+StreetSign Austin = Texas * NewYork / 2 - 11 GayMan
 
 dox Austin GayMan
