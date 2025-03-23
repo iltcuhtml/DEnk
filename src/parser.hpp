@@ -75,15 +75,22 @@ struct NodeStmtDox
     NodeExpr* expr;
 };
 
-struct NodeStmtStreetSign
+struct NodeStmtBigGuy
 {
     Token ident;
     NodeExpr* expr;
 };
 
+struct NodeStmt;
+
+struct NodeScope
+{
+    std::vector<NodeStmt*> stmts;
+};
+
 struct NodeStmt
 {
-    std::variant<NodeStmtDox*, NodeStmtStreetSign*> var;
+    std::variant<NodeStmtDox*, NodeStmtBigGuy*, NodeScope*> var;
 };
 
 struct NodeProg
@@ -249,9 +256,9 @@ class Parser
 
         std::optional<NodeStmt*> parse_stmt()
         {
-            if (try_consume(1, TokenType::StreetSign))
+            if (try_consume(1, TokenType::BigGuy))
             {
-                auto stmt_StreetSign = m_allocator.alloc<NodeStmtStreetSign>();
+                auto stmt_StreetSign = m_allocator.alloc<NodeStmtBigGuy>();
                 stmt_StreetSign->ident = try_consume(1, TokenType::ident, "Identifier Is Expected");
 
                 try_consume(1, TokenType::equal, "Token '=' Is Expected");
@@ -262,7 +269,7 @@ class Parser
                 }
                 else
                 {
-                    std::cerr << "Invalid 'StreetSign' Expression" << std::endl;
+                    std::cerr << "Invalid 'BigGuy' Expression" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
@@ -293,6 +300,22 @@ class Parser
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = stmt_dox;
+
+                return stmt;
+            }
+            else if (auto open_curly = try_consume(1, TokenType::open_curly))
+            {
+                auto scope = m_allocator.alloc<NodeScope>();
+
+                while (auto stmt = parse_stmt())
+                {
+                    scope->stmts.push_back(stmt.value());
+                }
+
+                try_consume(1, TokenType::close_curly, "Token '}' Is Expected");
+
+                auto stmt = m_allocator.alloc<NodeStmt>();
+                stmt->var = scope;
 
                 return stmt;
             }

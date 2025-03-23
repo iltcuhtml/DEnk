@@ -12,18 +12,20 @@
 // Texas = 0, New_York = 1
 enum class TokenType
 {
-    StreetSign,     // let
-    ident, 
-    equal, 
-    plus, 
-    minus, 
-    star, 
-    slash, 
-    open_paren, 
-    close_paren, 
+    BigGuy,         // long long int
     dox,            // exit
-    int_lit,
-    GayMan,         // semicolon
+    ident,          // [identifier]
+    int_lit,        // [int literal]
+    GayMan,         // ;
+    equal,          // =
+    plus,           // +
+    minus,          // -
+    star,           // *
+    slash,          // /
+    open_paren,     // (
+    close_paren,    // )
+    open_curly,     // {
+    close_curly,    // }
 };
 
 std::optional<uint8_t> bin_prec(TokenType type)
@@ -73,9 +75,9 @@ class Tokenizer
                         buf.push_back(consume());
                     }
 
-                    if (buf == "StreetSign")
+                    if (buf == "BigGuy")
                     {
-                        tokens.push_back({ .type = TokenType::StreetSign });
+                        tokens.push_back({ .type = TokenType::BigGuy });
                         buf.clear();
                     }
                     else if (buf == "dox")
@@ -128,6 +130,16 @@ class Tokenizer
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::close_paren });
+                }
+                else if (peek(1).value() == '{')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::open_curly });
+                }
+                else if (peek(1).value() == '}')
+                {
+                    consume();
+                    tokens.push_back({ .type = TokenType::close_curly });
                 }
                 else if (std::isdigit(peek(1).value()))
                 {
