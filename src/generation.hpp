@@ -49,6 +49,11 @@ class Generator
                     gen->get_Var("rax", (var.mem_loc + 1) * 8);
                     gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
                 }
+
+                void operator()(const NodeTermParen* term_paren) const
+                {
+                    gen->gen_expr(term_paren->expr);
+                }
             };
 
             TermVisitor visitor { .gen = this };

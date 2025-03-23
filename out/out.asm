@@ -9,21 +9,19 @@ main:
     sub rsp, 48
 
 
-    ; add
-    mov QWORD [rbp - 8], 9
-
-    ; add
+    ; mul
+    mov QWORD [rbp - 8], 5
 
     ; div
-    mov QWORD [rbp - 16], 6
+    mov QWORD [rbp - 16], 2
 
-    ; mul
-    mov QWORD [rbp - 24], 24
-    mov QWORD [rbp - 32], 5
+    ; add
+    mov QWORD [rbp - 24], 5
+    mov QWORD [rbp - 32], 3
     mov rax, QWORD [rbp - 32]
-    imul QWORD [rbp - 24]
+    add rax, QWORD [rbp - 24]
     mov QWORD [rbp - 24], rax
-    ; /mul
+    ; /add
 
     mov rax, QWORD [rbp - 24]
     cqo
@@ -31,20 +29,23 @@ main:
     mov QWORD [rbp - 16], rax
     ; /div
 
-    mov QWORD [rbp - 24], 3
-    mov rax, QWORD [rbp - 24]
-    add rax, QWORD [rbp - 16]
-    mov QWORD [rbp - 16], rax
-    ; /add
-
     mov rax, QWORD [rbp - 16]
-    add rax, QWORD [rbp - 8]
+    imul QWORD [rbp - 8]
     mov QWORD [rbp - 8], rax
-    ; /add
+    ; /mul
 
 
     ; sub
+
+    ; div
     mov QWORD [rbp - 16], 2
+    mov QWORD [rbp - 24], 4
+    mov rax, QWORD [rbp - 24]
+    cqo
+    idiv QWORD [rbp - 16]
+    mov QWORD [rbp - 16], rax
+    ; /div
+
     mov QWORD [rbp - 24], 7
     mov rax, QWORD [rbp - 24]
     sub rax, QWORD [rbp - 16]
@@ -52,8 +53,8 @@ main:
     ; /sub
 
 
-    ; sub
-    mov QWORD [rbp - 24], 11
+    ; add
+    mov QWORD [rbp - 24], 19
 
     ; div
     mov QWORD [rbp - 32], 2
@@ -75,9 +76,9 @@ main:
     ; /div
 
     mov rax, QWORD [rbp - 32]
-    sub rax, QWORD [rbp - 24]
+    add rax, QWORD [rbp - 24]
     mov QWORD [rbp - 24], rax
-    ; /sub
+    ; /add
 
 
     ; exit

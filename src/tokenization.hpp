@@ -77,79 +77,57 @@ class Tokenizer
                     {
                         tokens.push_back({ .type = TokenType::StreetSign });
                         buf.clear();
-
-                        continue;
                     }
                     else if (buf == "dox")
                     {
                         tokens.push_back({ .type = TokenType::dox });
                         buf.clear();
-
-                        continue;
                     }
                     else if (buf == "GayMan")
                     {
                         tokens.push_back({ .type = TokenType::GayMan });
                         buf.clear();
-
-                        continue;
                     }
                     else
                     {
                         tokens.push_back({ .type = TokenType::ident, .value = buf });
                         buf.clear();
-
-                        continue;
                     }
                 }
                 else if (peek(1).value() == '=')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::equal });
-
-                    continue;
                 }
                 else if (peek(1).value() == '+')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::plus });
-
-                    continue;
                 }
                 else if (peek(1).value() == '-')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::minus });
-
-                    continue;
                 }
                 else if (peek(1).value() == '*')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::star });
-
-                    continue;
                 }
                 else if (peek(1).value() == '/')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::slash });
-
-                    continue;
                 }
                 else if (peek(1).value() == '(')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::open_paren });
-
-                    continue;
                 }
                 else if (peek(1).value() == ')')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::close_paren });
-
-                    continue;
                 }
                 else if (std::isdigit(peek(1).value()))
                 {
@@ -166,8 +144,6 @@ class Tokenizer
                 else if (std::isspace(peek(1).value()))
                 {
                     consume();
-
-                    continue;
                 }
                 else
                 {
