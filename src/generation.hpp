@@ -26,43 +26,43 @@ class Generator
         {
             struct TermVisitor
             {
-                Generator* gen;
+                Generator& gen;
 
                 void operator()(const NodeTermIntLit* term_int_lit) const
                 {
-                    gen->mov_Var((gen->m_mem_size + 1) * 8, term_int_lit->int_lit.value.value());
+                    gen.mov_Var((gen.m_mem_size + 1) * 8, term_int_lit->int_lit.value.value());
                 }
 
                 void operator()(const NodeTermIdent* term_ident) const
                 {
                     auto it = 
                         std::find_if(
-                            gen->m_vars.cbegin(), 
-                            gen->m_vars.cend(), 
+                            gen.m_vars.cbegin(), 
+                            gen.m_vars.cend(), 
                             [&](const Var& var)
                             {
                                 return var.name == term_ident->ident.value.value();
                             }
                         );
                     
-                    if (it == gen->m_vars.cend())
+                    if (it == gen.m_vars.cend())
                     {
                         std::cerr << "Fehler: Bezeichner '" << term_ident->ident.value.value() << "' ist nicht deklariert" << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
 
-                    gen->get_Var("rax", ((*it).mem_loc + 1) * 8);
-                    gen->mov_Var((gen->m_mem_size + 1) * 8, "rax");
+                    gen.get_Var("rax", ((*it).mem_loc + 1) * 8);
+                    gen.mov_Var((gen.m_mem_size + 1) * 8, "rax");
                 }
 
                 void operator()(const NodeTermParen* term_paren) const
                 {
-                    gen->gen_expr(term_paren->expr);
+                    gen.gen_expr(term_paren->expr);
                 }
             };
 
-            TermVisitor visitor { .gen = this };
+            TermVisitor visitor { .gen = *this };
             std::visit(visitor, term->var);
         }
 
@@ -70,67 +70,67 @@ class Generator
         {
             struct BinExprVisitor
             {
-                Generator* gen;
+                Generator& gen;
 
                 void operator()(const NodeBinExprAdd* add) const
                 {
-                    gen->m_temp << "\n    ; add\n";
+                    gen.m_temp << "\n    ; add\n";
 
-                    gen->gen_expr(add->rhs);
-                    gen->gen_expr(add->lhs);
+                    gen.gen_expr(add->rhs);
+                    gen.gen_expr(add->lhs);
 
-                    gen->consume_Var("rax", gen->m_mem_size * 8);
-                    gen->m_temp << "    add rax, QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
-                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+                    gen.consume_Var("rax", gen.m_mem_size * 8);
+                    gen.m_temp << "    add rax, QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
+                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
 
-                    gen->m_temp << "    ; /add\n\n";
+                    gen.m_temp << "    ; /add\n\n";
                 }
 
                 void operator()(const NodeBinExprSub* sub) const
                 {
-                    gen->m_temp << "\n    ; sub\n";
+                    gen.m_temp << "\n    ; sub\n";
 
-                    gen->gen_expr(sub->rhs);
-                    gen->gen_expr(sub->lhs);
+                    gen.gen_expr(sub->rhs);
+                    gen.gen_expr(sub->lhs);
 
-                    gen->consume_Var("rax", gen->m_mem_size * 8);
-                    gen->m_temp << "    sub rax, QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
-                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+                    gen.consume_Var("rax", gen.m_mem_size * 8);
+                    gen.m_temp << "    sub rax, QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
+                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
 
-                    gen->m_temp << "    ; /sub\n\n";
+                    gen.m_temp << "    ; /sub\n\n";
                 }
 
                 void operator()(const NodeBinExprMul* mul) const
                 {
-                    gen->m_temp << "\n    ; mul\n";
+                    gen.m_temp << "\n    ; mul\n";
 
-                    gen->gen_expr(mul->rhs);
-                    gen->gen_expr(mul->lhs);
+                    gen.gen_expr(mul->rhs);
+                    gen.gen_expr(mul->lhs);
 
-                    gen->consume_Var("rax", gen->m_mem_size * 8);
-                    gen->m_temp << "    imul QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
-                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+                    gen.consume_Var("rax", gen.m_mem_size * 8);
+                    gen.m_temp << "    imul QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
+                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
 
-                    gen->m_temp << "    ; /mul\n\n";
+                    gen.m_temp << "    ; /mul\n\n";
                 }
 
                 void operator()(const NodeBinExprDiv* div) const
                 {
-                    gen->m_temp << "\n    ; div\n";
+                    gen.m_temp << "\n    ; div\n";
 
-                    gen->gen_expr(div->rhs);
-                    gen->gen_expr(div->lhs);
+                    gen.gen_expr(div->rhs);
+                    gen.gen_expr(div->lhs);
 
-                    gen->consume_Var("rax", gen->m_mem_size * 8);
-                    gen->m_temp << "    cqo\n";
-                    gen->m_temp << "    idiv QWORD [rbp - " << gen->m_mem_size * 8 << "]\n";
-                    gen->overwrite_Var(gen->m_mem_size * 8, "rax");
+                    gen.consume_Var("rax", gen.m_mem_size * 8);
+                    gen.m_temp << "    cqo\n";
+                    gen.m_temp << "    idiv QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
+                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
 
-                    gen->m_temp << "    ; /div\n\n";
+                    gen.m_temp << "    ; /div\n\n";
                 }
             };
 
-            BinExprVisitor visitor { .gen = this };
+            BinExprVisitor visitor { .gen = *this };
             std::visit(visitor, bin_expr->var);
         }
 
@@ -138,20 +138,20 @@ class Generator
         {
             struct ExprVisitor
             {
-                Generator* gen;
+                Generator& gen;
 
                 void operator()(const NodeTerm* term) const
                 {
-                    gen->gen_term(term);
+                    gen.gen_term(term);
                 }
 
                 void operator()(const NodeBinExpr* bin_expr) const
                 {
-                    gen->gen_bin_expr(bin_expr);
+                    gen.gen_bin_expr(bin_expr);
                 }
             };
             
-            ExprVisitor visitor { .gen = this };
+            ExprVisitor visitor { .gen = *this };
             std::visit(visitor, expr->var);
         }
 
@@ -171,93 +171,93 @@ class Generator
         {
             struct StmtVisitor
             {
-                Generator* gen;
+                Generator& gen;
 
                 void operator()(const NodeStmtBeende* stmt_beende) const
                 {
                     auto it = 
                         std::find_if(
-                            gen->m_extern.cbegin(), 
-                            gen->m_extern.cend(), 
+                            gen.m_extern.cbegin(), 
+                            gen.m_extern.cend(), 
                             [&](const std::string& externName)
                             {
                                 return externName == "ExitProcess";
                             }
                         );
                     
-                    if (it == gen->m_extern.cend())
+                    if (it == gen.m_extern.cend())
                     {
-                        gen->m_output << "    extern ExitProcess\n";
+                        gen.m_output << "    extern ExitProcess\n";
 
-                        gen->m_extern.push_back("ExitProcess");
+                        gen.m_extern.push_back("ExitProcess");
                     }
 
-                    gen->m_temp << "\n    ; exit\n";
+                    gen.m_temp << "\n    ; exit\n";
 
-                    gen->gen_expr(stmt_beende->expr);
+                    gen.gen_expr(stmt_beende->expr);
 
-                    gen->consume_Var("rcx", gen->m_mem_size * 8);
-                    gen->m_temp << "    call ExitProcess\n";
-                    gen->m_temp << "    ; /exit\n\n";
+                    gen.consume_Var("rcx", gen.m_mem_size * 8);
+                    gen.m_temp << "    call ExitProcess\n";
+                    gen.m_temp << "    ; /exit\n\n";
                 }
 
                 void operator()(const NodeStmtBestimme* stmt_bestimme) const
                 {
                     auto it = 
                         std::find_if(
-                            gen->m_vars.cbegin(), 
-                            gen->m_vars.cend(), 
+                            gen.m_vars.cbegin(), 
+                            gen.m_vars.cend(), 
                             [&](const Var& var)
                             {
                                 return var.name == stmt_bestimme->ident.value.value();
                             }
                         );
                     
-                    if (it != gen->m_vars.cend())
+                    if (it != gen.m_vars.cend())
                     {
                         std::cerr << "Fehler: Bezeichner '" << stmt_bestimme->ident.value.value() << "' wird bereits verwendet" << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
 
-                    gen->m_vars.push_back(
+                    gen.m_vars.push_back(
                         Var
                         {
                             .name = stmt_bestimme->ident.value.value(), 
-                            .mem_loc = gen->m_mem_size
+                            .mem_loc = gen.m_mem_size
                         }
                     );
 
-                    gen->gen_expr(stmt_bestimme->expr);
+                    gen.gen_expr(stmt_bestimme->expr);
                 }
 
                 void operator()(const NodeScope* scope) const
                 {
-                    gen->gen_scope(scope);
+                    gen.gen_scope(scope);
                 }
 
                 void operator()(const NodeStmtFalls* stmt_falls) const
                 {
-                    gen->m_temp << "\n    ; if\n";
+                    gen.m_temp << "\n    ; if\n";
 
-                    gen->gen_expr(stmt_falls->expr);
+                    gen.gen_expr(stmt_falls->expr);
                     
-                    gen->consume_Var("rax", gen->m_mem_size * 8);
+                    gen.consume_Var("rax", gen.m_mem_size * 8);
 
-                    std::string label = gen->create_label();
+                    std::string label = gen.create_label();
 
-                    gen->m_temp << "    test rax, rax\n";
-                    gen->m_temp << "    jz " << label << "\n";
+                    gen.m_temp << "    test rax, rax\n";
+                    gen.m_temp << "    jz " << label << "\n";
                     
-                    gen->gen_scope(stmt_falls->scope);
+                    gen.gen_scope(stmt_falls->scope);
 
-                    gen->m_temp << "    ; /if\n\n";
+                    gen.m_temp << "    ; /if\n\n";
 
-                    gen->m_temp << label << ":\n";
+                    gen.m_temp << label << ":\n";
                 }
             };
             
-            StmtVisitor visitor { .gen = this };
+            StmtVisitor visitor { .gen = *this };
             std::visit(visitor, stmt->var);
         }
 
