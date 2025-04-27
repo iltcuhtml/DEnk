@@ -14,9 +14,11 @@
 
 int main(int argc, char* argv[])
 {
+    system("chcp 65001 > nul");
+
     if (argc != 2)
     {
-        std::cerr << "Add Jschlang File (*.jschlang)" << std::endl;
+        std::cerr << "Fehler: Eine DEnk-Datei (*.DEnk) wird benötigt" << std::endl;
 
         return EXIT_FAILURE;
     }
@@ -24,9 +26,15 @@ int main(int argc, char* argv[])
     std::string contents;
 
     {
-        std::stringstream contents_stream;
+        std::ifstream input(argv[1], std::ios::binary);
 
-        std::fstream input(argv[1], std::ios::in);
+        if (!input.is_open())
+        {
+            std::cerr << "Fehler: Die Datei konnte nicht geöffnet werden" << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        std::ostringstream contents_stream;
         contents_stream << input.rdbuf();
         
         contents = contents_stream.str();
@@ -40,7 +48,7 @@ int main(int argc, char* argv[])
 
     if (!prog.has_value())
     {
-        std::cerr << "Invalid Program" << std::endl;
+        std::cerr << "Fehler: Ungültiges Programm" << std::endl;
 
         return EXIT_FAILURE;
     }
@@ -48,9 +56,16 @@ int main(int argc, char* argv[])
     Generator generator(prog.value());
 
     {
-        system("mkdir out");
+        system("mkdir out > nul");
 
-        std::fstream file("out/out.asm", std::ios::out);
+        std::ofstream file("out/out.asm", std::ios::out | std::ios::binary);
+
+        if (!file)
+        {
+            std::cerr << "Fehler: Die Ausgabedatei konnte nicht erstellt werden" << std::endl;
+            return EXIT_FAILURE;
+        }
+
         file << generator.gen_prog();
     }
 

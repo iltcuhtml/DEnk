@@ -48,7 +48,7 @@ class Generator
                     
                     if (it == gen->m_vars.cend())
                     {
-                        std::cerr << "Undeclared Identifier : " << term_ident->ident.value.value() << std::endl;
+                        std::cerr << "Fehler: Bezeichner '" << term_ident->ident.value.value() << "' ist nicht deklariert" << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
@@ -162,11 +162,11 @@ class Generator
             {
                 Generator* gen;
 
-                void operator()(const NodeStmtDox* stmt_dox) const
+                void operator()(const NodeStmtBeende* stmt_beende) const
                 {
                     gen->m_temp << "\n    ; exit\n";
                     
-                    gen->gen_expr(stmt_dox->expr);
+                    gen->gen_expr(stmt_beende->expr);
 
                     gen->consume_Var("rcx", gen->m_mem_size * 8);
                     gen->m_temp << "    call ExitProcess\n";
@@ -174,7 +174,7 @@ class Generator
                     gen->m_temp << "    ; /exit\n\n";
                 }
 
-                void operator()(const NodeStmtBigGuy* stmt_StreetSign) const
+                void operator()(const NodeStmtBestimme* stmt_bestimme) const
                 {
                     auto it = 
                         std::find_if(
@@ -182,13 +182,13 @@ class Generator
                             gen->m_vars.cend(), 
                             [&](const Var& var)
                             {
-                                return var.name == stmt_StreetSign->ident.value.value();
+                                return var.name == stmt_bestimme->ident.value.value();
                             }
                         );
                     
                     if (it != gen->m_vars.cend())
                     {
-                        std::cerr << "Identifier Is Already Used : " << stmt_StreetSign->ident.value.value() << std::endl;
+                        std::cerr << "Fehler: Bezeichner '" << stmt_bestimme->ident.value.value() << "' wird bereits verwendet" << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
@@ -196,12 +196,12 @@ class Generator
                     gen->m_vars.push_back(
                         Var
                         {
-                            .name = stmt_StreetSign->ident.value.value(), 
+                            .name = stmt_bestimme->ident.value.value(), 
                             .mem_loc = gen->m_mem_size
                         }
                     );
 
-                    gen->gen_expr(stmt_StreetSign->expr);
+                    gen->gen_expr(stmt_bestimme->expr);
                 }
 
                 void operator()(const NodeScope* scope) const
@@ -243,7 +243,7 @@ class Generator
 
             m_output << m_temp.rdbuf();
 
-            m_output << "    mov rcx, 0\n";
+            m_output << "\n    mov rcx, 0\n";
             m_output << "    call ExitProcess";
 
             return m_output.str();

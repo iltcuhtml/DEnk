@@ -9,14 +9,15 @@
 
 #include <fstream>
 
-// Texas = 0, New_York = 1
 enum class TokenType
 {
-    BigGuy,         // long long int
-    dox,            // exit
+    Bestimme,       // let (int64_t)
+    Beende,         // exit
     ident,          // [identifier]
     int_lit,        // [int literal]
-    GayMan,         // ;
+    dot,            // . (;)
+    als,            // = (as)
+    ist,            // = (is)
     equal,          // =
     plus,           // +
     minus,          // -
@@ -66,100 +67,104 @@ class Tokenizer
 
             while (peek(1).has_value())
             {
-                if (std::isalpha(peek(1).value()))
+                char32_t ch = peek(1).value();
+
+                if (is_alpha(ch))
                 {
-                    buf.push_back(consume());
+                    buf += consume();
 
-                    while (peek(1).has_value() && std::isalnum(peek(1).value()))
+                    while (peek(1).has_value() && is_alnum(peek(1).value()))
                     {
-                        buf.push_back(consume());
+                        buf += consume();
                     }
 
-                    if (buf == "BigGuy")
+                    if (buf == "Bestimme")
                     {
-                        tokens.push_back({ .type = TokenType::BigGuy });
-                        buf.clear();
+                        tokens.push_back({ .type = TokenType::Bestimme });
                     }
-                    else if (buf == "dox")
+                    else if (buf == "Beende")
                     {
-                        tokens.push_back({ .type = TokenType::dox });
-                        buf.clear();
+                        tokens.push_back({ .type = TokenType::Beende });
                     }
-                    else if (buf == "GayMan")
+                    else if (buf == "als")
                     {
-                        tokens.push_back({ .type = TokenType::GayMan });
-                        buf.clear();
+                        tokens.push_back({ .type = TokenType::als });
+                    }
+                    else if (buf == "ist")
+                    {
+                        tokens.push_back({ .type = TokenType::ist });
                     }
                     else
                     {
                         tokens.push_back({ .type = TokenType::ident, .value = buf });
-                        buf.clear();
                     }
+
+                    buf.clear();
                 }
-                else if (peek(1).value() == '=')
+                else if (ch == U'.')
                 {
                     consume();
-                    tokens.push_back({ .type = TokenType::equal });
+                    tokens.push_back({ .type = TokenType::dot });
                 }
-                else if (peek(1).value() == '+')
+                else if (ch == U'+')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::plus });
                 }
-                else if (peek(1).value() == '-')
+                else if (ch == U'-')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::minus });
                 }
-                else if (peek(1).value() == '*')
+                else if (ch == U'*')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::star });
                 }
-                else if (peek(1).value() == '/')
+                else if (ch == U'/')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::slash });
                 }
-                else if (peek(1).value() == '(')
+                else if (ch == U'(')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::open_paren });
                 }
-                else if (peek(1).value() == ')')
+                else if (ch == U')')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::close_paren });
                 }
-                else if (peek(1).value() == '{')
+                else if (ch == U'{')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::open_curly });
                 }
-                else if (peek(1).value() == '}')
+                else if (ch == U'}')
                 {
                     consume();
                     tokens.push_back({ .type = TokenType::close_curly });
                 }
-                else if (std::isdigit(peek(1).value()))
+                else if (is_digit(ch))
                 {
-                    buf.push_back(consume());
+                    buf += consume();
 
                     while (peek(1).has_value() && std::isdigit(peek(1).value()))
                     {
-                        buf.push_back(consume());
+                        buf += consume();
                     }
 
                     tokens.push_back({ .type = TokenType::int_lit, .value = buf });
                     buf.clear();
                 }
-                else if (std::isspace(peek(1).value()))
+                else if (std::isspace(ch))
                 {
                     consume();
                 }
                 else
                 {
-                    std::cerr << "Error Occurred In Code" << std::endl;
+                    std::cerr << "Fehler: Ein Syntaxfehler ist aufgetreten" << std::endl;
 
                     exit(EXIT_FAILURE);
                 }
@@ -171,21 +176,79 @@ class Tokenizer
         }
 
     private:
-        [[nodiscard]] std::optional<char> peek(const uint8_t& offset) const
+        [[nodiscard]] std::optional<char32_t> peek(const uint8_t& offset) const
         {
-            if (m_index + (offset - 1) >= m_src.length())
-            {
+            size_t peek_index = m_index + (offset - 1);
+
+            if (peek_index >= m_src.size())
                 return std::nullopt;
-            }
-            else
-            {
-                return m_src.at(m_index + (offset - 1));
-            }
+
+            uint8_t first = m_src.at(peek_index);
+
+            if (first < 0x80)
+                return first;
+
+            if ((first >> 5) == 0x06 && peek_index + 1 < m_src.size())
+                return ((first & 0x1F) << 6) | (m_src.at(peek_index + 1) & 0x3F);
+
+            if ((first >> 4) == 0x0E && peek_index + 2 < m_src.size())
+                return ((first & 0x0F) << 12) | ((m_src.at(peek_index + 1) & 0x3F) << 6)
+                        | (m_src.at(peek_index + 2) & 0x3F);
+
+            if ((first >> 3) == 0x1E && peek_index + 3 < m_src.size())
+                return ((first & 0x07) << 18) | ((m_src.at(peek_index + 1) & 0x3F) << 12)
+                        | ((m_src.at(peek_index + 2) & 0x3F) << 6)
+                        | (m_src.at(peek_index + 3) & 0x3F);
+
+            return std::nullopt;
         }
 
-        inline char consume()
+        
+        std::string consume()
         {
-            return m_src.at(m_index++);
+            if (m_index >= m_src.size())
+                return "";
+
+            uint8_t first = m_src.at(m_index);
+            size_t len = 1;
+
+            if (first < 0x80)
+                len = 1;
+            else if ((first >> 5) == 0x6)
+                len = 2;
+            else if ((first >> 4) == 0xE)
+                len = 3;
+            else if ((first >> 3) == 0x1E)
+                len = 4;
+            else
+                len = 1; // invalid utf-8 fallback
+
+            std::string result = m_src.substr(m_index, len);
+            
+            m_index += len;
+            
+            return result;
+        }
+
+        inline bool is_alpha(char32_t c) const
+        {
+            return (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') ||
+                   (c >= 0x00C0 && c <= 0x00FF); // Latin-1 Supplement (ä, ö, ü 포함)
+        }
+    
+        inline bool is_alnum(char32_t c) const
+        {
+            return is_alpha(c) || is_digit(c);
+        }
+    
+        inline bool is_digit(char32_t c) const
+        {
+            return (c >= U'0' && c <= U'9');
+        }
+    
+        inline bool is_space(char32_t c) const
+        {
+            return (c == U' ' || c == U'\n' || c == U'\r' || c == U'\t');
         }
 
         const std::string m_src;

@@ -70,12 +70,12 @@ struct NodeExpr
     std::variant<NodeTerm*, NodeBinExpr*> var;
 };
 
-struct NodeStmtDox
+struct NodeStmtBeende
 {
     NodeExpr* expr;
 };
 
-struct NodeStmtBigGuy
+struct NodeStmtBestimme
 {
     Token ident;
     NodeExpr* expr;
@@ -90,7 +90,7 @@ struct NodeScope
 
 struct NodeStmt
 {
-    std::variant<NodeStmtDox*, NodeStmtBigGuy*, NodeScope*> var;
+    std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*> var;
 };
 
 struct NodeProg
@@ -135,12 +135,12 @@ class Parser
 
                 if (!expr.has_value())
                 {
-                    std::cerr << "Unexpected Expression" << std::endl;
+                    std::cerr << "Fehler: Unerwarteter Ausdruck" << std::endl;
 
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::close_paren, "Token ')' Is Expected");
+                try_consume(1, TokenType::close_paren, "Fehler: Token ')' wird erwartet");
 
                 auto term_paren = m_allocator.alloc<NodeTermParen>();
                 term_paren->expr = expr.value();
@@ -195,7 +195,7 @@ class Parser
 
                 if (!expr_rhs.has_value())
                 {
-                    std::cerr << "Unable To Parse Expression" << std::endl;
+                    std::cerr << "Fehler: Ausdruck kann nicht geparst werden" << std::endl;
 
                     exit(EXIT_FAILURE);
                 }
@@ -256,12 +256,12 @@ class Parser
 
         std::optional<NodeStmt*> parse_stmt()
         {
-            if (try_consume(1, TokenType::BigGuy))
+            if (try_consume(1, TokenType::Bestimme))
             {
-                auto stmt_StreetSign = m_allocator.alloc<NodeStmtBigGuy>();
-                stmt_StreetSign->ident = try_consume(1, TokenType::ident, "Identifier Is Expected");
+                auto stmt_StreetSign = m_allocator.alloc<NodeStmtBestimme>();
+                stmt_StreetSign->ident = try_consume(1, TokenType::ident, "Fehler: Bezeichner wird erwartet");
 
-                try_consume(1, TokenType::equal, "Token '=' Is Expected");
+                try_consume(1, TokenType::als, "Fehler: Token 'als' wird erwartet");
 
                 if (auto expr = parse_expr())
                 {
@@ -269,37 +269,37 @@ class Parser
                 }
                 else
                 {
-                    std::cerr << "Invalid 'BigGuy' Expression" << std::endl;
+                    std::cerr << "Fehler: Ungültiger 'Bestimme'-Ausdruck" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::GayMan, "Token 'GayMan' Is Expected");
+                try_consume(1, TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = stmt_StreetSign;
 
                 return stmt;
             }
-            else if (try_consume(1, TokenType::dox))
+            else if (try_consume(1, TokenType::Beende))
             {
-                auto stmt_dox = m_allocator.alloc<NodeStmtDox>();
+                auto stmt_Beende = m_allocator.alloc<NodeStmtBeende>();
                 
                 if (auto node_expr = parse_expr())
                 {
-                    stmt_dox->expr = node_expr.value();
+                    stmt_Beende->expr = node_expr.value();
                 }
                 else
                 {
-                    std::cerr << "Invalid 'dox' Expression" << std::endl;
+                    std::cerr << "Fehler: Ungültiger 'Beende'-Ausdruck" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::GayMan, "Token 'GayMan' Is Expected");
+                try_consume(1, TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
-                stmt->var = stmt_dox;
+                stmt->var = stmt_Beende;
 
                 return stmt;
             }
@@ -312,7 +312,7 @@ class Parser
                     scope->stmts.push_back(stmt.value());
                 }
 
-                try_consume(1, TokenType::close_curly, "Token '}' Is Expected");
+                try_consume(1, TokenType::close_curly, "Fehler: Token '}' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = scope;
@@ -337,7 +337,7 @@ class Parser
                 }
                 else
                 {
-                    std::cerr << "Invalid Statement" << std::endl;
+                    std::cerr << "Fehler: Ungültige Anweisung" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }

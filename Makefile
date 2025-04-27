@@ -16,13 +16,13 @@ $(OBJECT):
 $(EXECUTABLE):
 	mkdir $(EXECUTABLE)
 
-# all -> jschlang
-all: $(OBJECT)/main.o | $(EXECUTABLE)/jschlang
+# all -> DEnk
+all: $(OBJECT)/main.o | $(EXECUTABLE)/DEnk
 
-# jschlang
-$(EXECUTABLE)/jschlang: $(OBJECT)/main.o | $(EXECUTABLE)
-	$(PP) $(CFLAGS) $(OBJECT)/main.o $(C_GAME_LIBRARY_FILES) -o $(EXECUTABLE)/jschlang
-	strip $(EXECUTABLE)/jschlang.exe
+# DEnk
+$(EXECUTABLE)/DEnk: $(OBJECT)/main.o | $(EXECUTABLE)
+	$(PP) $(CFLAGS) $(OBJECT)/main.o -o $(EXECUTABLE)/DEnk
+	strip $(EXECUTABLE)/DEnk.exe
 
 # main.cpp
 $(OBJECT)/main.o: $(C_SOURCE)/main.cpp | $(OBJECT)
