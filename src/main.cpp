@@ -52,9 +52,9 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    Generator generator(prog.value());
-
     {
+        Generator generator(prog.value());
+        
         system("mkdir out > nul");
 
         std::ofstream file("out/out.asm", std::ios::out | std::ios::binary);

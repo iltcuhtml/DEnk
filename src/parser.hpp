@@ -106,7 +106,7 @@ struct NodeProg
 class Parser
 {
     public:
-        inline explicit Parser(std::vector<Token> tokens)
+        explicit Parser(std::vector<Token> tokens)
             : m_tokens(std::move(tokens))
             , m_allocator(1024 * 1024 * 4)  // 4 MB
         {
@@ -124,7 +124,8 @@ class Parser
 
                 return term;
             }
-            else if (auto ident = try_consume(1, TokenType::ident))
+            
+            if (auto ident = try_consume(1, TokenType::ident))
             {
                 auto term_ident = m_allocator.alloc<NodeTermIdent>();
                 term_ident->ident = ident.value();
@@ -134,7 +135,8 @@ class Parser
                 
                 return term;
             }
-            else if (auto open_paren = try_consume(1, TokenType::open_paren))
+            
+            if (auto open_paren = try_consume(1, TokenType::open_paren))
             {
                 auto expr = parse_expr();
 
@@ -155,13 +157,11 @@ class Parser
 
                 return term;
             }
-            else
-            {
-                return std::nullopt;
-            }
+            
+            return std::nullopt;
         }
 
-        std::optional<NodeExpr*> parse_expr(size_t min_prec = 0)
+        std::optional<NodeExpr*> parse_expr(const size_t min_prec = 0)
         {
             std::optional<NodeTerm*> term_lhs = parse_term();
 
@@ -192,9 +192,9 @@ class Parser
                     break;
                 }
                 
-                Token op = consume();
+                const auto [type, value] = consume();
 
-                size_t next_min_prec = prec.value() + 1;
+                const size_t next_min_prec = prec.value() + 1;
 
                 auto expr_rhs = parse_expr(next_min_prec);
 
@@ -208,7 +208,7 @@ class Parser
                 auto expr = m_allocator.alloc<NodeBinExpr>();
                 auto expr_lhs2 = m_allocator.alloc<NodeExpr>();
                 
-                if (op.type == TokenType::plus)
+                if (type == TokenType::plus)
                 {
                     auto add = m_allocator.alloc<NodeBinExprAdd>();
                     
@@ -219,7 +219,7 @@ class Parser
 
                     expr->var = add;
                 }
-                else if (op.type == TokenType::minus)
+                else if (type == TokenType::minus)
                 {
                     auto sub = m_allocator.alloc<NodeBinExprSub>();
                     
@@ -230,7 +230,7 @@ class Parser
 
                     expr->var = sub;
                 }
-                else if (op.type == TokenType::star)
+                else if (type == TokenType::star)
                 {
                     auto mult = m_allocator.alloc<NodeBinExprMul>();
 
@@ -241,7 +241,7 @@ class Parser
 
                     expr->var = mult;
                 }
-                else if (op.type == TokenType::slash)
+                else if (type == TokenType::slash)
                 {
                     auto div = m_allocator.alloc<NodeBinExprDiv>();
                     
@@ -287,7 +287,7 @@ class Parser
 
                 try_consume(1, TokenType::als, "Fehler: Token 'als' wird erwartet");
 
-                if (auto expr = parse_expr())
+                if (const auto expr = parse_expr())
                 {
                     stmt_Bestimme->expr = expr.value();
                 }
@@ -305,11 +305,12 @@ class Parser
 
                 return stmt;
             }
-            else if (try_consume(1, TokenType::Beende))
+            
+            if (try_consume(1, TokenType::Beende))
             {
                 auto stmt_Beende = m_allocator.alloc<NodeStmtBeende>();
                 
-                if (auto node_expr = parse_expr())
+                if (const auto node_expr = parse_expr())
                 {
                     stmt_Beende->expr = node_expr.value();
                 }
@@ -327,9 +328,10 @@ class Parser
 
                 return stmt;
             }
-            else if (peek(1).has_value() && peek(1).value().type == TokenType::open_curly)
+            
+            if (peek(1).has_value() && peek(1).value().type == TokenType::open_curly)
             {
-                if (auto scope = parse_scope())
+                if (const auto scope = parse_scope())
                 {
                     auto stmt = m_allocator.alloc<NodeStmt>();
                     stmt->var = scope.value();
@@ -343,13 +345,14 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
             }
-            else if (try_consume(1, TokenType::falls))
+            
+            if (try_consume(1, TokenType::falls))
             {
                 auto stmt_falls = m_allocator.alloc<NodeStmtFalls>();
                 
                 try_consume(1, TokenType::open_paren, "Fehler: Token '(' wird erwartet");
                 
-                if (auto expr = parse_expr())
+                if (const auto expr = parse_expr())
                 {
                     stmt_falls->expr = expr.value();
                 }
@@ -363,7 +366,7 @@ class Parser
                 try_consume(1, TokenType::close_paren, "Fehler: Token ')' wird erwartet");
                 try_consume(1, TokenType::dann, "Fehler: Token 'dann' wird erwartet");
 
-                if (auto scope = parse_scope())
+                if (const auto scope = parse_scope())
                 {
                     stmt_falls->scope = scope.value();
                 }
@@ -379,10 +382,8 @@ class Parser
 
                 return stmt;
             }
-            else
-            {
-                return std::nullopt;
-            }
+
+            return std::nullopt;
         }
 
         std::optional<NodeProg> parse_prog()
@@ -413,41 +414,35 @@ class Parser
             {
                 return std::nullopt;
             }
-            else
-            {
-                return m_tokens.at(m_index + (offset - 1));
-            }
+            
+            return m_tokens.at(m_index + (offset - 1));
         }
         
-        inline Token consume()
+        Token consume()
         {
             return m_tokens.at(m_index++);
         }
 
-        inline std::optional<Token> try_consume(const size_t& offset, const TokenType& type)
+        std::optional<Token> try_consume(const size_t& offset, const TokenType& type)
         {
             if (peek(offset).has_value() && peek(offset).value().type == type)
             {
                 return consume();
             }
-            else
-            {
-                return std::nullopt;
-            }
+            
+            return std::nullopt;
         }
 
-        inline Token try_consume(const size_t& offset, const TokenType& type, const std::string& err_msg)
+        Token try_consume(const size_t& offset, const TokenType& type, const std::string& err_msg)
         {
             if (peek(offset).has_value() && peek(offset).value().type == type)
             {
                 return consume();
             }
-            else
-            {
-                std::cerr << err_msg << std::endl;
+
+            std::cerr << err_msg << std::endl;
                 
-                exit(EXIT_FAILURE);
-            }
+            exit(EXIT_FAILURE);
         }
 
         const std::vector<Token> m_tokens;

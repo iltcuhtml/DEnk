@@ -37,7 +37,7 @@ enum class TokenType
     close_curly,    // }
 };
 
-std::optional<size_t>bin_prec(TokenType type)
+inline std::optional<size_t>bin_prec(const TokenType type)
 {
     switch (type)
     {
@@ -63,12 +63,12 @@ struct Token
 class Tokenizer
 {
     public:
-        inline explicit Tokenizer(const std::string& src)
+        explicit Tokenizer(const std::string& src)
             : m_src(std::move(src))
         {
         }
 
-        inline std::vector<Token> tokenize()
+        std::vector<Token> tokenize()
         {
             std::vector<Token> tokens;
             std::string buf;

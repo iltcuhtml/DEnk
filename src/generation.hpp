@@ -35,8 +35,8 @@ class Generator
 
                 void operator()(const NodeTermIdent* term_ident) const
                 {
-                    auto it = 
-                        std::find_if(
+                    const auto it = 
+                        std::ranges::find_if(
                             gen.m_vars.cbegin(), 
                             gen.m_vars.cend(), 
                             [&](const Var& var)
@@ -52,7 +52,7 @@ class Generator
                         exit(EXIT_FAILURE);
                     }
 
-                    gen.get_Var("rax", ((*it).mem_loc + 1) * 8);
+                    gen.get_Var("rax", (it->mem_loc + 1) * 8);
                     gen.mov_Var((gen.m_mem_size + 1) * 8, "rax");
                 }
 
@@ -175,8 +175,8 @@ class Generator
 
                 void operator()(const NodeStmtBeende* stmt_beende) const
                 {
-                    auto it = 
-                        std::find_if(
+                    const auto it = 
+                        std::ranges::find_if(
                             gen.m_extern.cbegin(), 
                             gen.m_extern.cend(), 
                             [&](const std::string& externName)
@@ -244,7 +244,7 @@ class Generator
                     
                     gen.consume_Var("rax", gen.m_mem_size * 8);
 
-                    std::string label = gen.create_label();
+                    const std::string label = gen.create_label();
 
                     gen.m_temp << "    test rax, rax\n";
                     gen.m_temp << "    jz " << label << "\n";
@@ -341,7 +341,7 @@ class Generator
 
         void end_scope()
         {
-            size_t pop_count = m_vars.size() - m_scopes.back();
+            const size_t pop_count = m_vars.size() - m_scopes.back();
 
             m_mem_size -= pop_count;    // This CAN Make A Problem MAYBE
 
