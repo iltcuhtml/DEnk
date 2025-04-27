@@ -12,13 +12,22 @@
 enum class TokenType
 {
     Bestimme,       // let (int64_t)
+    falls,          // if
+    sonst,          // else
+    dann,           // then
     Beende,         // exit
     ident,          // [identifier]
     int_lit,        // [int literal]
     dot,            // . (;)
     als,            // = (as)
     ist,            // = (is)
-    equal,          // =
+    gleich,         // ==
+    ungleich,       // !=
+    größer,         // >
+    kleiner,        // <
+    und,            // &&
+    oder,           // ||
+    nicht,          // ! (not)
     plus,           // +
     minus,          // -
     star,           // *
