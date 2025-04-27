@@ -1,6 +1,7 @@
-Bestimme Var1 als (3 + 5) / 2 * 5.
-Bestimme Var2 als 7 - 4 / 2.
+Bestimme Var als 0.
 
-Bestimme Var3 als Var1 * Var2 / 2 + 19.
+falls (Var) dann {
+    Beende 69.
+}
 
-Beende Var3.
+Beende 0.

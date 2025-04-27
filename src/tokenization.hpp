@@ -20,7 +20,6 @@ enum class TokenType
     int_lit,        // [int literal]
     dot,            // . (;)
     als,            // = (as)
-    ist,            // = (is)
     gleich,         // ==
     ungleich,       // !=
     größer,         // >
@@ -38,7 +37,7 @@ enum class TokenType
     close_curly,    // }
 };
 
-std::optional<uint8_t> bin_prec(TokenType type)
+std::optional<size_t>bin_prec(TokenType type)
 {
     switch (type)
     {
@@ -91,6 +90,18 @@ class Tokenizer
                     {
                         tokens.push_back({ .type = TokenType::Bestimme });
                     }
+                    else if (buf == "falls")
+                    {
+                        tokens.push_back({ .type = TokenType::falls });
+                    }
+                    else if (buf == "sonst")
+                    {
+                        tokens.push_back({ .type = TokenType::sonst });
+                    }
+                    else if (buf == "dann")
+                    {
+                        tokens.push_back({ .type = TokenType::dann });
+                    }
                     else if (buf == "Beende")
                     {
                         tokens.push_back({ .type = TokenType::Beende });
@@ -99,9 +110,33 @@ class Tokenizer
                     {
                         tokens.push_back({ .type = TokenType::als });
                     }
-                    else if (buf == "ist")
+                    else if (buf == "gleich")
                     {
-                        tokens.push_back({ .type = TokenType::ist });
+                        tokens.push_back({ .type = TokenType::gleich });
+                    }
+                    else if (buf == "ungleich")
+                    {
+                        tokens.push_back({ .type = TokenType::ungleich });
+                    }
+                    else if (buf == "größer")
+                    {
+                        tokens.push_back({ .type = TokenType::größer });
+                    }
+                    else if (buf == "kleiner")
+                    {
+                        tokens.push_back({ .type = TokenType::kleiner });
+                    }
+                    else if (buf == "und")
+                    {
+                        tokens.push_back({ .type = TokenType::und });
+                    }
+                    else if (buf == "oder")
+                    {
+                        tokens.push_back({ .type = TokenType::oder });
+                    }
+                    else if (buf == "nicht")
+                    {
+                        tokens.push_back({ .type = TokenType::nicht });
                     }
                     else
                     {
@@ -185,14 +220,14 @@ class Tokenizer
         }
 
     private:
-        [[nodiscard]] std::optional<char32_t> peek(const uint8_t& offset) const
+        [[nodiscard]] std::optional<char32_t> peek(const size_t& offset) const
         {
             size_t peek_index = m_index + (offset - 1);
 
             if (peek_index >= m_src.size())
                 return std::nullopt;
 
-            uint8_t first = m_src.at(peek_index);
+            size_t first = m_src.at(peek_index);
 
             if (first < 0x80)
                 return first;
@@ -218,7 +253,7 @@ class Tokenizer
             if (m_index >= m_src.size())
                 return "";
 
-            uint8_t first = m_src.at(m_index);
+            size_t first = m_src.at(m_index);
             size_t len = 1;
 
             if (first < 0x80)
@@ -230,7 +265,7 @@ class Tokenizer
             else if ((first >> 3) == 0x1E)
                 len = 4;
             else
-                len = 1; // invalid utf-8 fallback
+                len = 1;
 
             std::string result = m_src.substr(m_index, len);
             
@@ -242,7 +277,7 @@ class Tokenizer
         inline bool is_alpha(char32_t c) const
         {
             return (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') ||
-                   (c >= 0x00C0 && c <= 0x00FF); // Latin-1 Supplement (ä, ö, ü 포함)
+                   (c >= 0x00C0 && c <= 0x00FF);
         }
     
         inline bool is_alnum(char32_t c) const

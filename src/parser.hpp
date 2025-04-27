@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include <cstdint>
 #include <sstream>
 #include <vector>
 
@@ -88,9 +87,15 @@ struct NodeScope
     std::vector<NodeStmt*> stmts;
 };
 
+struct NodeStmtFalls
+{
+    NodeExpr* expr;
+    NodeScope* scope;
+};
+
 struct NodeStmt
 {
-    std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*> var;
+    std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*, NodeStmtFalls*> var;
 };
 
 struct NodeProg
@@ -156,7 +161,7 @@ class Parser
             }
         }
 
-        std::optional<NodeExpr*> parse_expr(uint8_t min_prec = 0)
+        std::optional<NodeExpr*> parse_expr(size_t min_prec = 0)
         {
             std::optional<NodeTerm*> term_lhs = parse_term();
 
@@ -171,7 +176,7 @@ class Parser
             while (true)
             {
                 std::optional<Token> curr_tok = peek(1);
-                std::optional<uint8_t> prec;
+                std::optional<size_t> prec;
 
                 if (curr_tok.has_value())
                 {
@@ -189,7 +194,7 @@ class Parser
                 
                 Token op = consume();
 
-                uint8_t next_min_prec = prec.value() + 1;
+                size_t next_min_prec = prec.value() + 1;
 
                 auto expr_rhs = parse_expr(next_min_prec);
 
@@ -254,18 +259,37 @@ class Parser
             return expr_lhs;
         }
 
+        std::optional<NodeScope*> parse_scope()
+        {
+            if (!try_consume(1, TokenType::open_curly).has_value())
+            {
+                return std::nullopt;
+            }
+
+            auto scope = m_allocator.alloc<NodeScope>();
+
+            while (auto stmt = parse_stmt())
+            {
+                scope->stmts.push_back(stmt.value());
+            }
+
+            try_consume(1, TokenType::close_curly, "Fehler: Token '}' wird erwartet");
+
+            return scope;
+        }
+
         std::optional<NodeStmt*> parse_stmt()
         {
             if (try_consume(1, TokenType::Bestimme))
             {
-                auto stmt_StreetSign = m_allocator.alloc<NodeStmtBestimme>();
-                stmt_StreetSign->ident = try_consume(1, TokenType::ident, "Fehler: Bezeichner wird erwartet");
+                auto stmt_Bestimme = m_allocator.alloc<NodeStmtBestimme>();
+                stmt_Bestimme->ident = try_consume(1, TokenType::ident, "Fehler: Bezeichner wird erwartet");
 
                 try_consume(1, TokenType::als, "Fehler: Token 'als' wird erwartet");
 
                 if (auto expr = parse_expr())
                 {
-                    stmt_StreetSign->expr = expr.value();
+                    stmt_Bestimme->expr = expr.value();
                 }
                 else
                 {
@@ -277,7 +301,7 @@ class Parser
                 try_consume(1, TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
-                stmt->var = stmt_StreetSign;
+                stmt->var = stmt_Bestimme;
 
                 return stmt;
             }
@@ -303,19 +327,55 @@ class Parser
 
                 return stmt;
             }
-            else if (auto open_curly = try_consume(1, TokenType::open_curly))
+            else if (peek(1).has_value() && peek(1).value().type == TokenType::open_curly)
             {
-                auto scope = m_allocator.alloc<NodeScope>();
-
-                while (auto stmt = parse_stmt())
+                if (auto scope = parse_scope())
                 {
-                    scope->stmts.push_back(stmt.value());
+                    auto stmt = m_allocator.alloc<NodeStmt>();
+                    stmt->var = scope.value();
+
+                    return stmt;
+                }
+                else
+                {
+                    std::cerr << "Fehler: Ungültiger Gültigkeitsbereich" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if (try_consume(1, TokenType::falls))
+            {
+                auto stmt_falls = m_allocator.alloc<NodeStmtFalls>();
+                
+                try_consume(1, TokenType::open_paren, "Fehler: Token '(' wird erwartet");
+                
+                if (auto expr = parse_expr())
+                {
+                    stmt_falls->expr = expr.value();
+                }
+                else
+                {
+                    std::cerr << "Fehler: Ungültige Anweisung" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::close_curly, "Fehler: Token '}' wird erwartet");
+                try_consume(1, TokenType::close_paren, "Fehler: Token ')' wird erwartet");
+                try_consume(1, TokenType::dann, "Fehler: Token 'dann' wird erwartet");
+
+                if (auto scope = parse_scope())
+                {
+                    stmt_falls->scope = scope.value();
+                }
+                else
+                {
+                    std::cerr << "Fehler: Ungültiger Gültigkeitsbereich" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
-                stmt->var = scope;
+                stmt->var = stmt_falls;
 
                 return stmt;
             }
@@ -347,7 +407,7 @@ class Parser
         }
 
     private:
-        [[nodiscard]] std::optional<Token> peek(const uint8_t& offset) const
+        [[nodiscard]] std::optional<Token> peek(const size_t& offset) const
         {
             if (m_index + (offset - 1) >= m_tokens.size())
             {
@@ -364,7 +424,7 @@ class Parser
             return m_tokens.at(m_index++);
         }
 
-        inline std::optional<Token> try_consume(const uint8_t& offset, const TokenType& type)
+        inline std::optional<Token> try_consume(const size_t& offset, const TokenType& type)
         {
             if (peek(offset).has_value() && peek(offset).value().type == type)
             {
@@ -376,7 +436,7 @@ class Parser
             }
         }
 
-        inline Token try_consume(const uint8_t& offset, const TokenType& type, const std::string& err_msg)
+        inline Token try_consume(const size_t& offset, const TokenType& type, const std::string& err_msg)
         {
             if (peek(offset).has_value() && peek(offset).value().type == type)
             {

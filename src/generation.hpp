@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include <cmath>
-#include <cstdint>
 #include <sstream>
 #include <vector>
 #include <cassert>
@@ -155,6 +154,18 @@ class Generator
             ExprVisitor visitor { .gen = this };
             std::visit(visitor, expr->var);
         }
+
+        void gen_scope(const NodeScope* scope)
+        {
+            begin_scope();
+
+            for (const NodeStmt* stmt : scope->stmts)
+            {
+                gen_stmt(stmt);
+            }
+
+            end_scope();
+        }
         
         void gen_stmt(const NodeStmt* stmt)
         {
@@ -164,13 +175,29 @@ class Generator
 
                 void operator()(const NodeStmtBeende* stmt_beende) const
                 {
-                    gen->m_temp << "\n    ; exit\n";
+                    auto it = 
+                        std::find_if(
+                            gen->m_extern.cbegin(), 
+                            gen->m_extern.cend(), 
+                            [&](const std::string& externName)
+                            {
+                                return externName == "ExitProcess";
+                            }
+                        );
                     
+                    if (it == gen->m_extern.cend())
+                    {
+                        gen->m_output << "    extern ExitProcess\n";
+
+                        gen->m_extern.push_back("ExitProcess");
+                    }
+
+                    gen->m_temp << "\n    ; exit\n";
+
                     gen->gen_expr(stmt_beende->expr);
 
                     gen->consume_Var("rcx", gen->m_mem_size * 8);
                     gen->m_temp << "    call ExitProcess\n";
-
                     gen->m_temp << "    ; /exit\n\n";
                 }
 
@@ -206,14 +233,27 @@ class Generator
 
                 void operator()(const NodeScope* scope) const
                 {
-                    gen->begin_scope();
+                    gen->gen_scope(scope);
+                }
 
-                    for (const NodeStmt* stmt : scope->stmts)
-                    {
-                        gen->gen_stmt(stmt);
-                    }
+                void operator()(const NodeStmtFalls* stmt_falls) const
+                {
+                    gen->m_temp << "\n    ; if\n";
 
-                    gen->end_scope();
+                    gen->gen_expr(stmt_falls->expr);
+                    
+                    gen->consume_Var("rax", gen->m_mem_size * 8);
+
+                    std::string label = gen->create_label();
+
+                    gen->m_temp << "    test rax, rax\n";
+                    gen->m_temp << "    jz " << label << "\n";
+                    
+                    gen->gen_scope(stmt_falls->scope);
+
+                    gen->m_temp << "    ; /if\n\n";
+
+                    gen->m_temp << label << ":\n";
                 }
             };
             
@@ -224,27 +264,21 @@ class Generator
         [[nodiscard]] std::string gen_prog()
         {
             m_output << "section .text\n";
-            m_output << "    global main\n\n";
+            m_output << "    global main\n\n";        
             
-            // m_output << "    extern printf\n";
-            m_output << "    extern ExitProcess\n\n";
-            
-            m_output << "main:\n";
-            m_output << "    push rbp\n";
-            m_output << "    mov rbp, rsp\n";
-            m_output << "    sub rsp, ";
-
             for (const NodeStmt* stmt : m_prog.stmts)
             {
                 gen_stmt(stmt);
             }
-
-            m_output << ceil(static_cast<float>(m_max_stack_size + m_max_mem_size) / 2) * 16 << "\n\n";
-
+            
+            m_output << "\nmain:\n";
+            m_output << "    push rbp\n";
+            m_output << "    mov rbp, rsp\n";
+            m_output << "    sub rsp, "
+                     << ceil(static_cast<float>(m_max_stack_size + m_max_mem_size) / 2) * 16
+                     << "\n\n";
+            
             m_output << m_temp.rdbuf();
-
-            m_output << "\n    mov rcx, 0\n";
-            m_output << "    call ExitProcess";
 
             return m_output.str();
         }
@@ -270,7 +304,7 @@ class Generator
         }
 
         // value can be a register
-        void mov_Var(const uint64_t& mem_loc, const std::string& value)
+        void mov_Var(const size_t& mem_loc, const std::string& value)
         {
             m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
             
@@ -283,17 +317,17 @@ class Generator
         }
 
         // value can be a register
-        void overwrite_Var(const uint64_t& mem_loc, const std::string& value)
+        void overwrite_Var(const size_t& mem_loc, const std::string& value)
         {
             m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
         }
 
-        void get_Var(const std::string& reg, const uint64_t& mem_loc)
+        void get_Var(const std::string& reg, const size_t& mem_loc)
         {
             m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
         }
 
-        void consume_Var(const std::string& reg, const uint64_t& mem_loc)
+        void consume_Var(const std::string& reg, const size_t& mem_loc)
         {
             m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
 
@@ -319,6 +353,14 @@ class Generator
             m_scopes.pop_back();
         }
 
+        std::string create_label()
+        {
+            std::stringstream ss;
+            ss << ".L" << m_label_count++;
+
+            return ss.str();
+        }
+
         struct Var
         {
             std::string name;
@@ -330,6 +372,8 @@ class Generator
         std::stringstream m_temp;
         std::stringstream m_output;
 
+        std::vector<std::string> m_extern;
+
         size_t m_stack_size = 0;
         size_t m_mem_size = 0;
 
@@ -338,4 +382,6 @@ class Generator
 
         std::vector<Var> m_vars;
         std::vector<size_t> m_scopes;
+
+        size_t m_label_count = 0;
 };
