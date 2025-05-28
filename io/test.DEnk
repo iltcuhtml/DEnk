@@ -1,10 +1,10 @@
-Bestimme Var als 0.
+Bestimme Var als 69.
 
-falls (Var - 69) dann {
+falls (Var gleich 69) dann {
     Beende 69.
-} 
+}
 
-falls (Var - 420) dann {
+falls (Var kleiner 420) dann {
     Beende 420.
 }
 
