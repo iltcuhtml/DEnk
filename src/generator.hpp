@@ -2,233 +2,161 @@
 
 #include <iostream>
 
-#include <cmath>
 #include <sstream>
 #include <vector>
-#include <cassert>
-
 #include <optional>
-
 #include <fstream>
+#include <ranges>
+#include <cmath>
+#include <cassert>
 
 #include "tokenizer.hpp"
 #include "parser.hpp"
 
 class Generator
-{
-    public:
-        inline explicit Generator(NodeProg prog)
-            : m_prog(std::move(prog))
+{    
+    private:
+        /* Internal State */
+        struct Var
         {
+            std::string name;
+            size_t mem_loc;
+        };
+
+        const NodeProg m_prog;
+        std::stringstream m_temp, m_output;
+        std::vector<std::string> m_extern;
+
+        std::vector<Var> m_vars;
+        std::vector<size_t> m_scopes;
+
+        size_t m_mem_size = 0;
+        size_t m_stack_size = 0;
+        size_t m_max_mem_size = 0;
+        size_t m_max_stack_size = 0;
+
+        size_t m_label_count = 0;
+
+        /* Expression Generation */
+        void gen_expr(const NodeExpr* expr)
+        {
+            struct Visitor
+            {
+                Generator& gen;
+
+                void operator()(const NodeTerm* term) const { gen.gen_term(term); }
+
+                void operator()(const NodeBinExpr* bin_expr) const { gen.gen_bin_expr(bin_expr); }
+            };
+
+            std::visit(Visitor{ *this }, expr->var);
         }
 
         void gen_term(const NodeTerm* term)
         {
-            struct TermVisitor
+            struct Visitor
             {
                 Generator& gen;
 
-                void operator()(const NodeTermIntLit* term_int_lit) const
+                void operator()(const NodeTermIntLit* t) const
                 {
-                    gen.mov_Var((gen.m_mem_size + 1) * 8, term_int_lit->int_lit.value.value());
+                    gen.store_value(gen.temp_mem_loc(), t->int_lit.value.value());
                 }
 
-                void operator()(const NodeTermIdent* term_ident) const
+                void operator()(const NodeTermIdent* t) const
                 {
-                    const auto it = 
+                    auto it = 
                         std::ranges::find_if(
-                            gen.m_vars.cbegin(), 
-                            gen.m_vars.cend(), 
+                            gen.m_vars, 
                             [&](const Var& var)
                             {
-                                return var.name == term_ident->ident.value.value();
+                                return var.name == t->ident.value.value();
                             }
                         );
                     
                     if (it == gen.m_vars.cend())
                     {
-                        std::cerr << "Fehler: Bezeichner '" << term_ident->ident.value.value() << "' ist nicht deklariert" << std::endl;
+                        std::cerr << "Fehler: Bezeichner '" << t->ident.value.value() << "' ist nicht deklariert\n";
 
                         exit(EXIT_FAILURE);
                     }
 
-                    gen.get_Var("rax", (it->mem_loc + 1) * 8);
-                    gen.mov_Var((gen.m_mem_size + 1) * 8, "rax");
+                    gen.load_var("rax", (it->mem_loc + 1) * 8);
+                    gen.store_value(gen.temp_mem_loc(), "rax");
                 }
 
-                void operator()(const NodeTermParen* term_paren) const
+                void operator()(const NodeTermParen* t) const
                 {
-                    gen.gen_expr(term_paren->expr);
+                    gen.gen_expr(t->expr);
                 }
             };
 
-            TermVisitor visitor { .gen = *this };
-            std::visit(visitor, term->var);
+            std::visit(Visitor{ *this }, term->var);
         }
 
         void gen_bin_expr(const NodeBinExpr* bin_expr)
         {
-            struct BinExprVisitor
+            struct Visitor
             {
                 Generator& gen;
 
-                void operator()(const NodeBinExprAdd* add) const
+                void binary_op(const NodeExpr* lhs, const NodeExpr* rhs, const std::string& instr) const
                 {
-                    gen.m_temp << "\n    ; add\n";
+                    gen.gen_expr(rhs);
+                    gen.gen_expr(lhs);
+                    
+                    gen.consume_var("rax", gen.temp_mem_loc(true));
+                    
+                    if (instr == "div")
+                    {
+                        gen.m_temp << "    cqo\n";
+                        gen.m_temp << "    idiv QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
+                    }
+                    else
+                    {
+                        gen.m_temp << "    " << instr << " rax, QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
+                    }
 
-                    gen.gen_expr(add->rhs);
-                    gen.gen_expr(add->lhs);
-
-                    gen.consume_Var("rax", gen.m_mem_size * 8);
-                    gen.m_temp << "    add rax, QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
-                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
-
-                    gen.m_temp << "    ; /add\n\n";
+                    gen.overwrite_value(gen.temp_mem_loc(true), "rax");
                 }
 
-                void operator()(const NodeBinExprSub* sub) const
-                {
-                    gen.m_temp << "\n    ; sub\n";
-
-                    gen.gen_expr(sub->rhs);
-                    gen.gen_expr(sub->lhs);
-
-                    gen.consume_Var("rax", gen.m_mem_size * 8);
-                    gen.m_temp << "    sub rax, QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
-                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
-
-                    gen.m_temp << "    ; /sub\n\n";
-                }
-
-                void operator()(const NodeBinExprMul* mul) const
-                {
-                    gen.m_temp << "\n    ; mul\n";
-
-                    gen.gen_expr(mul->rhs);
-                    gen.gen_expr(mul->lhs);
-
-                    gen.consume_Var("rax", gen.m_mem_size * 8);
-                    gen.m_temp << "    imul QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
-                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
-
-                    gen.m_temp << "    ; /mul\n\n";
-                }
-
-                void operator()(const NodeBinExprDiv* div) const
-                {
-                    gen.m_temp << "\n    ; div\n";
-
-                    gen.gen_expr(div->rhs);
-                    gen.gen_expr(div->lhs);
-
-                    gen.consume_Var("rax", gen.m_mem_size * 8);
-                    gen.m_temp << "    cqo\n";
-                    gen.m_temp << "    idiv QWORD [rbp - " << gen.m_mem_size * 8 << "]\n";
-                    gen.overwrite_Var(gen.m_mem_size * 8, "rax");
-
-                    gen.m_temp << "    ; /div\n\n";
-                }
+                void operator()(const NodeBinExprAdd* n) const { binary_op(n->lhs, n->rhs, "add"); }
+                void operator()(const NodeBinExprSub* n) const { binary_op(n->lhs, n->rhs, "sub"); }
+                void operator()(const NodeBinExprMul* n) const { binary_op(n->lhs, n->rhs, "imul"); }
+                void operator()(const NodeBinExprDiv* n) const { binary_op(n->lhs, n->rhs, "div"); }
             };
 
-            BinExprVisitor visitor { .gen = *this };
-            std::visit(visitor, bin_expr->var);
-        }
-
-        void gen_expr(const NodeExpr* expr)
-        {
-            struct ExprVisitor
-            {
-                Generator& gen;
-
-                void operator()(const NodeTerm* term) const
-                {
-                    gen.gen_term(term);
-                }
-
-                void operator()(const NodeBinExpr* bin_expr) const
-                {
-                    gen.gen_bin_expr(bin_expr);
-                }
-            };
-            
-            ExprVisitor visitor { .gen = *this };
-            std::visit(visitor, expr->var);
-        }
-
-        void gen_scope(const NodeScope* scope)
-        {
-            begin_scope();
-
-            for (const NodeStmt* stmt : scope->stmts)
-            {
-                gen_stmt(stmt);
-            }
-
-            end_scope();
+            std::visit(Visitor{ *this }, bin_expr->var);
         }
         
+        /* Statement Generation */
         void gen_stmt(const NodeStmt* stmt)
         {
-            struct StmtVisitor
+            struct Visitor
             {
                 Generator& gen;
 
-                void operator()(const NodeStmtBeende* stmt_beende) const
+                void operator()(const NodeStmtBeende* s) const
                 {
-                    const auto it = 
-                        std::ranges::find_if(
-                            gen.m_extern.cbegin(), 
-                            gen.m_extern.cend(), 
-                            [&](const std::string& externName)
-                            {
-                                return externName == "ExitProcess";
-                            }
-                        );
-                    
-                    if (it == gen.m_extern.cend())
-                    {
-                        gen.m_output << "    extern ExitProcess\n";
+                    gen.declare_extern_once("ExitProcess");
 
-                        gen.m_extern.push_back("ExitProcess");
-                    }
+                    gen.gen_expr(s->expr);
+                    gen.consume_var("rcx", gen.temp_mem_loc());
 
-                    gen.m_temp << "\n    ; exit\n";
-
-                    gen.gen_expr(stmt_beende->expr);
-
-                    gen.consume_Var("rcx", gen.m_mem_size * 8);
                     gen.m_temp << "    call ExitProcess\n";
-                    gen.m_temp << "    ; /exit\n\n";
                 }
 
-                void operator()(const NodeStmtBestimme* stmt_bestimme) const
+                void operator()(const NodeStmtBestimme* s) const
                 {
-                    auto it = 
-                        std::find_if(
-                            gen.m_vars.cbegin(), 
-                            gen.m_vars.cend(), 
-                            [&](const Var& var)
-                            {
-                                return var.name == stmt_bestimme->ident.value.value();
-                            }
-                        );
-                    
-                    if (it != gen.m_vars.cend())
+                    if (gen.find_var(s->ident.value.value()))
                     {
-                        std::cerr << "Fehler: Bezeichner '" << stmt_bestimme->ident.value.value() << "' wird bereits verwendet" << std::endl;
-
+                        std::cerr << "Fehler: Bezeichner '" << s->ident.value.value() << "' wird bereits verwendet\n";
+                        
                         exit(EXIT_FAILURE);
                     }
-
-                    gen.m_vars.push_back(
-                        Var
-                        {
-                            .name = stmt_bestimme->ident.value.value(), 
-                            .mem_loc = gen.m_mem_size
-                        }
-                    );
-
-                    gen.gen_expr(stmt_bestimme->expr);
+                    
+                    gen.m_vars.push_back({s->ident.value.value(), gen.m_mem_size});
+                    gen.gen_expr(s->expr);
                 }
 
                 void operator()(const NodeScope* scope) const
@@ -236,104 +164,70 @@ class Generator
                     gen.gen_scope(scope);
                 }
 
-                void operator()(const NodeStmtFalls* stmt_falls) const
+                void operator()(const NodeStmtFalls* s) const
                 {
-                    gen.m_temp << "\n    ; if\n";
-
-                    gen.gen_expr(stmt_falls->expr);
+                    gen.gen_expr(s->expr);
+                    gen.consume_var("rax", gen.temp_mem_loc());
                     
-                    gen.consume_Var("rax", gen.m_mem_size * 8);
-
                     const std::string label = gen.create_label();
 
                     gen.m_temp << "    test rax, rax\n";
                     gen.m_temp << "    jz " << label << "\n";
                     
-                    gen.gen_scope(stmt_falls->scope);
-
-                    gen.m_temp << "    ; /if\n\n";
-
+                    gen.gen_scope(s->scope);
                     gen.m_temp << label << ":\n";
                 }
             };
             
-            StmtVisitor visitor { .gen = *this };
-            std::visit(visitor, stmt->var);
+            std::visit(Visitor{ *this }, stmt->var);
         }
 
-        [[nodiscard]] std::string gen_prog()
+        void gen_scope(const NodeScope* scope)
         {
-            m_output << "section .text\n";
-            m_output << "    global main\n\n";        
-            
-            for (const NodeStmt* stmt : m_prog.stmts)
-            {
+            begin_scope();
+
+            for (const NodeStmt* stmt : scope->stmts)
                 gen_stmt(stmt);
-            }
+
+            end_scope();
+        }
+
+        /* Assembly Helpers */
+        void store_value(size_t mem, const std::string& val)
+        {
+            m_temp << "    mov QWORD [rbp - " << mem << "], " << val << "\n";
             
-            m_output << "\nmain:\n";
-            m_output << "    push rbp\n";
-            m_output << "    mov rbp, rsp\n";
-            m_output << "    sub rsp, "
-                     << ceil(static_cast<float>(m_max_stack_size + m_max_mem_size) / 2) * 16
-                     << "\n\n";
-            
-            m_output << m_temp.rdbuf();
-
-            return m_output.str();
-        }
-    
-    private:
-        void push(const std::string& reg)
-        {
-            m_temp << "    push " << reg << "\n";
-            
-            m_stack_size++;
-
-            if (m_max_stack_size < m_stack_size)
-            {
-                m_max_stack_size = m_stack_size;
-            }
+            track_mem();
         }
 
-        void pop(const std::string& reg)
+        void overwrite_value(size_t mem, const std::string& val)
         {
-            m_temp << "    pop " << reg << "\n";
-            
-            m_stack_size--;
+            m_temp << "    mov QWORD [rbp - " << mem << "], " << val << "\n";
         }
 
-        // value can be a register
-        void mov_Var(const size_t& mem_loc, const std::string& value)
+        void load_var(const std::string& reg, size_t mem)
         {
-            m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
-            
-            m_mem_size++;
-
-            if (m_max_mem_size < m_mem_size)
-            {
-                m_max_mem_size = m_mem_size;
-            }
+            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem << "]\n";
         }
 
-        // value can be a register
-        void overwrite_Var(const size_t& mem_loc, const std::string& value)
+        void consume_var(const std::string& reg, size_t mem)
         {
-            m_temp << "    mov QWORD [rbp - " << mem_loc << "], " << value << "\n";
-        }
-
-        void get_Var(const std::string& reg, const size_t& mem_loc)
-        {
-            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
-        }
-
-        void consume_Var(const std::string& reg, const size_t& mem_loc)
-        {
-            m_temp << "    mov " << reg << ", QWORD [rbp - " << mem_loc << "]" << "\n";
+            load_var(reg, mem);
 
             m_mem_size--;
         }
 
+        void declare_extern_once(const std::string& name)
+        {
+            if (std::ranges::find(m_extern, name) == m_extern.end())
+            {
+                m_output << "    extern " << name << "\n";
+
+                m_extern.push_back(name);
+            }
+        }
+
+        /* Scope Helpers */
         void begin_scope()
         {
             m_scopes.push_back(m_vars.size());
@@ -343,45 +237,65 @@ class Generator
         {
             const size_t pop_count = m_vars.size() - m_scopes.back();
 
-            m_mem_size -= pop_count;    // This CAN Make A Problem MAYBE
+            m_mem_size -= pop_count;
 
-            for (size_t i = 0; i < pop_count; i++)
-            {
-                m_vars.pop_back();
-            }
-
+            m_vars.resize(m_scopes.back());
             m_scopes.pop_back();
+        }
+
+        std::optional<Var> find_var(const std::string& name)
+        {
+            for (const auto& v : m_vars)
+                if (v.name == name)
+                    return v;
+
+            return std::nullopt;
+        }
+
+        size_t temp_mem_loc(bool offset = false) const
+        {
+            return (m_mem_size + (offset ? 1 : 0)) * 8;
+        }
+
+        void track_mem()
+        {
+            m_mem_size++;
+
+            m_max_mem_size = std::max(m_max_mem_size, m_mem_size);
+        }
+
+        size_t align_stack(size_t raw) const
+        {
+            return static_cast<size_t>(std::ceil(raw / 2.0)) * 16;
         }
 
         std::string create_label()
         {
-            std::stringstream ss;
-            ss << ".L" << m_label_count++;
-
-            return ss.str();
+            return ".L" + std::to_string(m_label_count++);
         }
 
-        struct Var
+    public:
+        inline explicit Generator(NodeProg prog)
+            : m_prog(std::move(prog))
+            {}
+
+        std::string gen_prog()
         {
-            std::string name;
+            m_output << "section .text\n";
+            m_output << "    global _start\n\n";        
+            
+            for (const NodeStmt* stmt : m_prog.stmts)
+                gen_stmt(stmt);
+            
+            m_output << "\n_start:\n";
+            m_output << "    push rbp\n";
+            m_output << "    mov rbp, rsp\n";
+            m_output << "    sub rsp, "
+                     << align_stack(m_max_stack_size + m_max_mem_size)
+                     << "\n\n";
+            
+            m_output << m_temp.rdbuf();
 
-            size_t mem_loc;
-        };
-
-        const NodeProg m_prog;
-        std::stringstream m_temp;
-        std::stringstream m_output;
-
-        std::vector<std::string> m_extern;
-
-        size_t m_stack_size = 0;
-        size_t m_mem_size = 0;
-
-        size_t m_max_stack_size = 0;
-        size_t m_max_mem_size = 0;
-
-        std::vector<Var> m_vars;
-        std::vector<size_t> m_scopes;
-
-        size_t m_label_count = 0;
+            return m_output.str();
+        }
 };
