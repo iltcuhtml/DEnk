@@ -120,37 +120,54 @@ class Generator
 
         void gen_bin_expr(const NodeBinExpr* bin_expr)
         {
-            struct Visitor
+            auto& gen = *this;
+        
+            auto binary_op = [&](const NodeExpr* lhs, const NodeExpr* rhs, const std::string& instr)
             {
-                Generator& gen;
-
-                void binary_op(const NodeExpr* lhs, const NodeExpr* rhs, const std::string& instr) const
+                gen.gen_expr(rhs);
+                gen.gen_expr(lhs);
+            
+                gen.consume_var("rax", gen.temp_mem_loc(true));
+            
+                if (instr == "div")
                 {
-                    gen.gen_expr(rhs);
-                    gen.gen_expr(lhs);
-                    
-                    gen.consume_var("rax", gen.temp_mem_loc(true));
-                    
-                    if (instr == "div")
-                    {
-                        gen.m_temp << "    cqo\n";
-                        gen.m_temp << "    idiv QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
-                    }
-                    else
-                    {
-                        gen.m_temp << "    " << instr << " rax, QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
-                    }
-
-                    gen.overwrite_value(gen.temp_mem_loc(true), "rax");
+                    gen.m_temp << "    cqo\n";
+                    gen.m_temp << "    idiv QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
                 }
-
-                void operator()(const NodeBinExprAdd* n) const { binary_op(n->lhs, n->rhs, "add"); }
-                void operator()(const NodeBinExprSub* n) const { binary_op(n->lhs, n->rhs, "sub"); }
-                void operator()(const NodeBinExprMul* n) const { binary_op(n->lhs, n->rhs, "imul"); }
-                void operator()(const NodeBinExprDiv* n) const { binary_op(n->lhs, n->rhs, "div"); }
+                else
+                {
+                    gen.m_temp << "    " << instr << " rax, QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
+                }
+            
+                gen.overwrite_value(gen.temp_mem_loc(true), "rax");
             };
+        
+            switch (bin_expr->op)
+            {
+                case BinOp::Add:
+                    binary_op(bin_expr->lhs, bin_expr->rhs, "add");
 
-            std::visit(Visitor{ *this }, bin_expr->var);
+                    break;
+
+                case BinOp::Sub:
+                    binary_op(bin_expr->lhs, bin_expr->rhs, "sub");
+                    
+                    break;
+
+                case BinOp::Mul:
+                    binary_op(bin_expr->lhs, bin_expr->rhs, "imul");
+                    
+                    break;
+
+                case BinOp::Div:
+                    binary_op(bin_expr->lhs, bin_expr->rhs, "div");
+                    
+                    break;
+                    
+                default:
+                    // Handle error or unsupported operation
+                    break;
+            }
         }
         
         /* Statement Generation */

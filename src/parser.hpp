@@ -13,91 +13,90 @@
 #include "arena.hpp"
 #include "tokenizer.hpp"
 
+// Integer Literal Node
 struct NodeTermIntLit
 {
     Token int_lit;
 };
 
+// Identifier (variable) Node
 struct NodeTermIdent
 {
     Token ident;
 };
 
-struct NodeExpr;
+struct NodeExpr; // Forward Declaration
 
+// Parenthesized Expression Node
 struct NodeTermParen
 {
     NodeExpr* expr;
 };
 
-struct NodeBinExprAdd
+// Binary Operators
+enum class BinOp
 {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
+    Add,
+    Sub,
+    Mul,
+    Div
 };
 
-struct NodeBinExprSub
-{
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprMul
-{
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprDiv
-{
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
+// Binary Expression Node
 struct NodeBinExpr
 {
-    std::variant<NodeBinExprAdd*, NodeBinExprSub*, NodeBinExprMul*, NodeBinExprDiv*> var;
+    BinOp op;
+    NodeExpr* lhs;
+    NodeExpr* rhs;
 };
 
+// Term Node
 struct NodeTerm
 {
     std::variant<NodeTermIntLit*, NodeTermIdent*, NodeTermParen*> var;
 };
 
+// Expression Node
 struct NodeExpr
 {
     std::variant<NodeTerm*, NodeBinExpr*> var;
 };
 
+// Return Statement Node
 struct NodeStmtBeende
 {
     NodeExpr* expr;
 };
 
+// Assignment Statement Node
 struct NodeStmtBestimme
 {
     Token ident;
     NodeExpr* expr;
 };
 
-struct NodeStmt;
+struct NodeStmt; // Forward Declaration
 
+// Block Scope Node
 struct NodeScope
 {
     std::vector<NodeStmt*> stmts;
 };
 
+// If Statement Node
 struct NodeStmtFalls
 {
     NodeExpr* expr;
     NodeScope* scope;
 };
 
+// Statement Node
 struct NodeStmt
 {
     std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*, NodeStmtFalls*> var;
 };
 
+// Program Root Node
 struct NodeProg
 {
     std::vector<NodeStmt*> stmts;
@@ -164,98 +163,62 @@ class Parser
         std::optional<NodeExpr*> parse_expr(const size_t min_prec = 0)
         {
             std::optional<NodeTerm*> term_lhs = parse_term();
-
+        
             if (!term_lhs.has_value())
-            {
                 return std::nullopt;
-            }
-
+        
             auto expr_lhs = m_allocator.alloc<NodeExpr>();
             expr_lhs->var = term_lhs.value();
-            
+        
             while (true)
             {
-                std::optional<Token> curr_tok = peek(1);
-                std::optional<size_t> prec;
-
-                if (curr_tok.has_value())
-                {
-                    prec = bin_prec(curr_tok->type);
-
-                    if (!prec.has_value() || prec < min_prec)
-                    {
-                        break;
-                    }
-                }
-                else
-                {
+                auto curr_tok = peek(1);
+                auto prec = curr_tok ? bin_prec(curr_tok->type) : std::nullopt;
+            
+                if (!prec.has_value() || prec.value() < min_prec)
                     break;
-                }
-                
+            
                 const auto [type, value] = consume();
-
                 const size_t next_min_prec = prec.value() + 1;
-
+            
                 auto expr_rhs = parse_expr(next_min_prec);
-
+            
                 if (!expr_rhs.has_value())
                 {
                     std::cerr << "Fehler: Ausdruck kann nicht geparst werden" << std::endl;
-
+                    
                     exit(EXIT_FAILURE);
                 }
-
-                auto expr = m_allocator.alloc<NodeBinExpr>();
-                auto expr_lhs2 = m_allocator.alloc<NodeExpr>();
-                
+            
+                auto bin_expr = m_allocator.alloc<NodeBinExpr>();
+            
+                bin_expr->lhs = expr_lhs;
+            
                 if (type == TokenType::plus)
-                {
-                    auto add = m_allocator.alloc<NodeBinExprAdd>();
-                    
-                    expr_lhs2->var = expr_lhs->var;
+                    bin_expr->op = BinOp::Add;
 
-                    add->lhs = expr_lhs2;
-                    add->rhs = expr_rhs.value();
-
-                    expr->var = add;
-                }
                 else if (type == TokenType::minus)
-                {
-                    auto sub = m_allocator.alloc<NodeBinExprSub>();
-                    
-                    expr_lhs2->var = expr_lhs->var;
+                    bin_expr->op = BinOp::Sub;
 
-                    sub->lhs = expr_lhs2;
-                    sub->rhs = expr_rhs.value();
-
-                    expr->var = sub;
-                }
                 else if (type == TokenType::star)
-                {
-                    auto mult = m_allocator.alloc<NodeBinExprMul>();
+                    bin_expr->op = BinOp::Mul;
 
-                    expr_lhs2->var = expr_lhs->var;
-
-                    mult->lhs = expr_lhs2;
-                    mult->rhs = expr_rhs.value();
-
-                    expr->var = mult;
-                }
                 else if (type == TokenType::slash)
+                    bin_expr->op = BinOp::Div;
+
+                else
                 {
-                    auto div = m_allocator.alloc<NodeBinExprDiv>();
+                    std::cerr << "Fehler: Ungültiger Binäroperator" << std::endl;
                     
-                    expr_lhs2->var = expr_lhs->var;
-
-                    div->lhs = expr_lhs2;
-                    div->rhs = expr_rhs.value();
-
-                    expr->var = div;
+                    exit(EXIT_FAILURE);
                 }
-
-                expr_lhs->var = expr;
+            
+                bin_expr->rhs = expr_rhs.value();
+            
+                expr_lhs = m_allocator.alloc<NodeExpr>();
+                expr_lhs->var = bin_expr;
             }
-
+        
             return expr_lhs;
         }
 
