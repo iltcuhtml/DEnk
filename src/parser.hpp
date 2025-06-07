@@ -11,7 +11,7 @@
 #include <fstream>
 
 #include "arena.hpp"
-#include "tokenization.hpp"
+#include "tokenizer.hpp"
 
 struct NodeTermIntLit
 {

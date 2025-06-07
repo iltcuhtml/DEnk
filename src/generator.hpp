@@ -11,7 +11,7 @@
 
 #include <fstream>
 
-#include "tokenization.hpp"
+#include "tokenizer.hpp"
 #include "parser.hpp"
 
 class Generator

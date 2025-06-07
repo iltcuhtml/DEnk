@@ -7,9 +7,9 @@
 
 #include <fstream>
 
-#include "tokenization.hpp"
+#include "tokenizer.hpp"
 #include "parser.hpp"
-#include "generation.hpp"
+#include "generator.hpp"
 
 int main(int argc, char* argv[])
 {
