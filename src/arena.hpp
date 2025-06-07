@@ -7,11 +7,6 @@
 
 class ArenaAllocator
 {
-    private:
-        size_t m_size;          // total size of buffer in bytes
-        std::byte* m_buffer;    // start of the buffer
-        std::byte* m_offset;    // current allocation offset pointer
-
     public:
         explicit ArenaAllocator(const size_t max_num_bytes)
             : m_size(max_num_bytes)
@@ -77,4 +72,9 @@ class ArenaAllocator
             // Users must manually destroy objects if needed to avoid resource leaks.
             delete[] m_buffer;
         }
+    
+    private:
+        size_t m_size;          // total size of buffer in bytes
+        std::byte* m_buffer;    // start of the buffer
+        std::byte* m_offset;    // current allocation offset pointer
 };

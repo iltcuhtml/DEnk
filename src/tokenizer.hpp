@@ -9,30 +9,11 @@
 
 enum class TokenType
 {
-    Bestimme,       // let (int64_t)
-    falls,          // if
-    sonst,          // else
-    dann,           // then
-    Beende,         // exit
-    ident,          // [identifier]
-    int_lit,        // [int literal]
-    dot,            // . (;)
-    als,            // = (as)
-    gleich,         // ==
-    ungleich,       // !=
-    größer,         // >
-    kleiner,        // <
-    und,            // &&
-    oder,           // ||
-    nicht,          // ! (not)
-    plus,           // +
-    minus,          // -
-    star,           // *
-    slash,          // /
-    open_paren,     // (
-    close_paren,    // )
-    open_curly,     // {
-    close_curly,    // }
+    Bestimme, falls, sonst, dann, Beende, 
+    ident, int_lit, dot, als, gleich, ungleich, 
+    größer, kleiner, und, oder, nicht, 
+    plus, minus, star, slash, 
+    open_paren, close_paren, open_curly, close_curly, 
 };
 
 inline std::optional<size_t>bin_prec(const TokenType type)
@@ -61,15 +42,20 @@ struct Token
 class Tokenizer
 {
     public:
-        explicit Tokenizer(const std::string& src)
-            : m_src(std::move(src))
-        {
-        }
+        explicit Tokenizer(const std::string& src) : m_src(src) {}
 
         std::vector<Token> tokenize()
         {
+            static const std::unordered_map<std::string, TokenType> keywords = {
+                {"Bestimme", TokenType::Bestimme}, {"falls", TokenType::falls}, 
+                {"sonst", TokenType::sonst}, {"dann", TokenType::dann}, 
+                {"Beende", TokenType::Beende}, {"als", TokenType::als}, 
+                {"gleich", TokenType::gleich}, {"ungleich", TokenType::ungleich}, 
+                {"größer", TokenType::größer}, {"kleiner", TokenType::kleiner}, 
+                {"und", TokenType::und}, {"oder", TokenType::oder}, {"nicht", TokenType::nicht}
+            };
+
             std::vector<Token> tokens;
-            std::string buf;
 
             while (peek(1).has_value())
             {
@@ -77,217 +63,155 @@ class Tokenizer
 
                 if (is_alpha(ch))
                 {
-                    buf += consume();
+                    std::string ident = consume_while([&](char32_t c) { return is_alnum(c); });
 
-                    while (peek(1).has_value() && is_alnum(peek(1).value()))
-                    {
-                        buf += consume();
-                    }
+                    auto it = keywords.find(ident);
 
-                    if (buf == "Bestimme")
-                    {
-                        tokens.push_back({ .type = TokenType::Bestimme });
-                    }
-                    else if (buf == "falls")
-                    {
-                        tokens.push_back({ .type = TokenType::falls });
-                    }
-                    else if (buf == "sonst")
-                    {
-                        tokens.push_back({ .type = TokenType::sonst });
-                    }
-                    else if (buf == "dann")
-                    {
-                        tokens.push_back({ .type = TokenType::dann });
-                    }
-                    else if (buf == "Beende")
-                    {
-                        tokens.push_back({ .type = TokenType::Beende });
-                    }
-                    else if (buf == "als")
-                    {
-                        tokens.push_back({ .type = TokenType::als });
-                    }
-                    else if (buf == "gleich")
-                    {
-                        tokens.push_back({ .type = TokenType::gleich });
-                    }
-                    else if (buf == "ungleich")
-                    {
-                        tokens.push_back({ .type = TokenType::ungleich });
-                    }
-                    else if (buf == "größer")
-                    {
-                        tokens.push_back({ .type = TokenType::größer });
-                    }
-                    else if (buf == "kleiner")
-                    {
-                        tokens.push_back({ .type = TokenType::kleiner });
-                    }
-                    else if (buf == "und")
-                    {
-                        tokens.push_back({ .type = TokenType::und });
-                    }
-                    else if (buf == "oder")
-                    {
-                        tokens.push_back({ .type = TokenType::oder });
-                    }
-                    else if (buf == "nicht")
-                    {
-                        tokens.push_back({ .type = TokenType::nicht });
-                    }
+                    if (it != keywords.end())
+                        tokens.push_back({ .type = it->second });
                     else
-                    {
-                        tokens.push_back({ .type = TokenType::ident, .value = buf });
-                    }
-
-                    buf.clear();
-                }
-                else if (ch == U'.')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::dot });
-                }
-                else if (ch == U'+')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::plus });
-                }
-                else if (ch == U'-')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::minus });
-                }
-                else if (ch == U'*')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::star });
-                }
-                else if (ch == U'/')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::slash });
-                }
-                else if (ch == U'(')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::open_paren });
-                }
-                else if (ch == U')')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::close_paren });
-                }
-                else if (ch == U'{')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::open_curly });
-                }
-                else if (ch == U'}')
-                {
-                    consume();
-                    tokens.push_back({ .type = TokenType::close_curly });
+                        tokens.push_back({ .type = TokenType::ident, .value = ident });
                 }
                 else if (is_digit(ch))
                 {
-                    buf += consume();
-
-                    while (peek(1).has_value() && std::isdigit(peek(1).value()))
-                    {
-                        buf += consume();
-                    }
-
-                    tokens.push_back({ .type = TokenType::int_lit, .value = buf });
-                    buf.clear();
+                    std::string number = consume_while([&](char32_t c) { return is_digit(c); });
+                    
+                    tokens.push_back({ .type = TokenType::int_lit, .value = number });
                 }
-                else if (std::isspace(ch))
+                else if (is_space(ch))
                 {
                     consume();
                 }
                 else
                 {
-                    std::cerr << "Fehler: Ein Syntaxfehler ist aufgetreten" << std::endl;
+                    const auto one_char = consume();
 
-                    exit(EXIT_FAILURE);
+                    if (one_char == ".")
+                        tokens.push_back({ .type = TokenType::dot });
+                    
+                    else if (one_char == "+")
+                        tokens.push_back({ .type = TokenType::plus });
+                    
+                    else if (one_char == "-")
+                        tokens.push_back({ .type = TokenType::minus });
+                    
+                    else if (one_char == "*")
+                        tokens.push_back({ .type = TokenType::star });
+                    
+                    else if (one_char == "/")
+                        tokens.push_back({ .type = TokenType::slash });
+                    
+                    else if (one_char == "(")
+                        tokens.push_back({ .type = TokenType::open_paren });
+                    
+                    else if (one_char == ")")
+                        tokens.push_back({ .type = TokenType::close_paren });
+                    
+                    else if (one_char == "{")
+                        tokens.push_back({ .type = TokenType::open_curly });
+                    
+                    else if (one_char == "}")
+                        tokens.push_back({ .type = TokenType::close_curly });
+                    
+                    else
+                    {
+                        std::cerr << "Fehler: Ein Syntaxfehler ist aufgetreten\n";
+
+                        exit(EXIT_FAILURE);
+                    }
                 }
             }
-            
+
             m_index = 0;
 
             return tokens;
         }
 
     private:
-        [[nodiscard]] std::optional<char32_t> peek(const size_t& offset) const
+        template <typename Predicate>
+        std::string consume_while(Predicate pred)
+        {
+            std::string result;
+
+            while (peek(1).has_value() && pred(peek(1).value()))
+                result += consume();
+            
+            return result;
+        }
+
+        std::optional<char32_t> peek(const size_t& offset) const
         {
             size_t peek_index = m_index + (offset - 1);
-
+            
             if (peek_index >= m_src.size())
                 return std::nullopt;
 
-            size_t first = m_src.at(peek_index);
+            unsigned char first = m_src[peek_index];
 
             if (first < 0x80)
                 return first;
 
             if ((first >> 5) == 0x06 && peek_index + 1 < m_src.size())
-                return ((first & 0x1F) << 6) | (m_src.at(peek_index + 1) & 0x3F);
+                return ((first & 0x1F) << 6) | (m_src[peek_index + 1] & 0x3F);
 
             if ((first >> 4) == 0x0E && peek_index + 2 < m_src.size())
-                return ((first & 0x0F) << 12) | ((m_src.at(peek_index + 1) & 0x3F) << 6)
-                        | (m_src.at(peek_index + 2) & 0x3F);
+                return ((first & 0x0F) << 12) | ((m_src[peek_index + 1] & 0x3F) << 6)
+                     | (m_src[peek_index + 2] & 0x3F);
 
             if ((first >> 3) == 0x1E && peek_index + 3 < m_src.size())
-                return ((first & 0x07) << 18) | ((m_src.at(peek_index + 1) & 0x3F) << 12)
-                        | ((m_src.at(peek_index + 2) & 0x3F) << 6)
-                        | (m_src.at(peek_index + 3) & 0x3F);
+                return ((first & 0x07) << 18) | ((m_src[peek_index + 1] & 0x3F) << 12)
+                     | ((m_src[peek_index + 2] & 0x3F) << 6)
+                     | (m_src[peek_index + 3] & 0x3F);
 
             return std::nullopt;
         }
 
-        
         std::string consume()
         {
             if (m_index >= m_src.size())
                 return "";
 
-            size_t first = m_src.at(m_index);
+            unsigned char first = m_src[m_index];
             size_t len = 1;
 
             if (first < 0x80)
                 len = 1;
-            else if ((first >> 5) == 0x6)
+            
+            else if ((first >> 5) == 0x06)
                 len = 2;
-            else if ((first >> 4) == 0xE)
+            
+            else if ((first >> 4) == 0x0E)
                 len = 3;
+            
             else if ((first >> 3) == 0x1E)
                 len = 4;
-            else
-                len = 1;
 
             std::string result = m_src.substr(m_index, len);
             
             m_index += len;
-            
+
             return result;
         }
 
         inline bool is_alpha(char32_t c) const
         {
-            return (c >= U'a' && c <= U'z') || (c >= U'A' && c <= U'Z') ||
-                   (c >= 0x00C0 && c <= 0x00FF);
+            return (c >= U'a' && c <= U'z') || 
+                   (c >= U'A' && c <= U'Z') ||
+                   (c >= 0x00C0 && c <= 0x00FF) || // Latin-1 (includes ß, ä, ö, ü, é, etc.)
+                   (c >= 0x0100 && c <= 0x017F) || // Latin Extended-A
+                   (c >= 0x0180 && c <= 0x024F);   // Latin Extended-B
         }
-    
+
         inline bool is_alnum(char32_t c) const
         {
             return is_alpha(c) || is_digit(c);
         }
-    
+
         inline bool is_digit(char32_t c) const
         {
             return (c >= U'0' && c <= U'9');
         }
-    
+
         inline bool is_space(char32_t c) const
         {
             return (c == U' ' || c == U'\n' || c == U'\r' || c == U'\t');

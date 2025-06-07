@@ -13,7 +13,32 @@
 #include "parser.hpp"
 
 class Generator
-{    
+{
+    public:
+        inline explicit Generator(NodeProg prog)
+            : m_prog(std::move(prog))
+            {}
+
+        std::string gen_prog()
+        {
+            m_output << "section .text\n";
+            m_output << "    global _start\n\n";        
+            
+            for (const NodeStmt* stmt : m_prog.stmts)
+                gen_stmt(stmt);
+            
+            m_output << "\n_start:\n";
+            m_output << "    push rbp\n";
+            m_output << "    mov rbp, rsp\n";
+            m_output << "    sub rsp, "
+                     << align_stack(m_max_stack_size + m_max_mem_size)
+                     << "\n\n";
+            
+            m_output << m_temp.rdbuf();
+
+            return m_output.str();
+        }
+    
     private:
         /* Internal State */
         struct Var
@@ -271,30 +296,5 @@ class Generator
         std::string create_label()
         {
             return ".L" + std::to_string(m_label_count++);
-        }
-
-    public:
-        inline explicit Generator(NodeProg prog)
-            : m_prog(std::move(prog))
-            {}
-
-        std::string gen_prog()
-        {
-            m_output << "section .text\n";
-            m_output << "    global _start\n\n";        
-            
-            for (const NodeStmt* stmt : m_prog.stmts)
-                gen_stmt(stmt);
-            
-            m_output << "\n_start:\n";
-            m_output << "    push rbp\n";
-            m_output << "    mov rbp, rsp\n";
-            m_output << "    sub rsp, "
-                     << align_stack(m_max_stack_size + m_max_mem_size)
-                     << "\n\n";
-            
-            m_output << m_temp.rdbuf();
-
-            return m_output.str();
         }
 };
