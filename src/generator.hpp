@@ -32,7 +32,7 @@ class Generator
             m_output << "    mov rbp, rsp\n";
             m_output << "    sub rsp, "
                      << align_stack(m_max_stack_size + m_max_mem_size)
-                     << "\n\n";
+                     << "\n";
             
             m_output << m_temp.rdbuf();
 
@@ -88,7 +88,7 @@ class Generator
 
                 void operator()(const NodeTermIntLit* t) const
                 {
-                    gen.store_value(gen.temp_mem_loc(), t->int_lit.value.value());
+                    gen.store_value(gen.mem_loc(), t->int_lit.value.value());
                 }
 
                 void operator()(const NodeTermIdent* t) const
@@ -110,7 +110,7 @@ class Generator
                     }
 
                     gen.load_var("rax", (it->mem_loc + 1) * 8);
-                    gen.store_value(gen.temp_mem_loc(), "rax");
+                    gen.store_value(gen.mem_loc(), "rax");
                 }
 
                 void operator()(const NodeTermParen* t) const
@@ -128,22 +128,26 @@ class Generator
         
             auto binary_op = [&](const NodeExpr* lhs, const NodeExpr* rhs, const std::string& instr)
             {
+                gen.m_temp << "\n    ; " << instr << "\n";
+                
                 gen.gen_expr(rhs);
                 gen.gen_expr(lhs);
             
-                gen.consume_var("rax", gen.temp_mem_loc(true));
+                gen.consume_var("rax", gen.mem_loc());
             
                 if (instr == "div")
                 {
                     gen.m_temp << "    cqo\n";
-                    gen.m_temp << "    idiv QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
+                    gen.m_temp << "    idiv QWORD [rbp - " << gen.mem_loc() << "]\n";
                 }
                 else
                 {
-                    gen.m_temp << "    " << instr << " rax, QWORD [rbp - " << gen.temp_mem_loc(true) << "]\n";
+                    gen.m_temp << "    " << instr << " rax, QWORD [rbp - " << gen.mem_loc() << "]\n";
                 }
             
-                gen.overwrite_value(gen.temp_mem_loc(true), "rax");
+                gen.overwrite_value(gen.mem_loc(), "rax");
+
+                gen.m_temp << "    ; /" << instr << "\n";
             };
         
             switch (bin_expr->op)
@@ -185,10 +189,13 @@ class Generator
                 {
                     gen.declare_extern_once("ExitProcess");
 
-                    gen.gen_expr(s->expr);
-                    gen.consume_var("rcx", gen.temp_mem_loc());
+                    gen.m_temp << "\n    ; ExitProcess\n";
 
-                    gen.m_temp << "    call ExitProcess";
+                    gen.gen_expr(s->expr);
+                    gen.consume_var("rcx", gen.mem_loc());
+
+                    gen.m_temp << "    call ExitProcess\n"
+                               << "    ; /ExitProcess\n";
                 }
 
                 void operator()(const NodeStmtBestimme* s) const
@@ -199,9 +206,13 @@ class Generator
                         
                         exit(EXIT_FAILURE);
                     }
+
+                    gen.m_temp << "\n    ; Bestimme\n";
                     
                     gen.m_vars.push_back({s->ident.value.value(), gen.m_mem_size});
                     gen.gen_expr(s->expr);
+
+                    gen.m_temp << "    ; /Bestimme\n";
                 }
 
                 void operator()(const NodeScope* scope) const
@@ -211,16 +222,25 @@ class Generator
 
                 void operator()(const NodeStmtFalls* s) const
                 {
+                    gen.m_temp << "\n    ; Falls";
+
                     gen.gen_expr(s->expr);
-                    gen.consume_var("rax", gen.temp_mem_loc());
+
+                    gen.m_temp << "\n";
+
+                    gen.consume_var("rax", gen.mem_loc());
                     
                     const std::string label = gen.create_label();
 
                     gen.m_temp << "    test rax, rax\n";
-                    gen.m_temp << "    jz " << label << "\n";
+                    gen.m_temp << "    jnz " << label << "\n"
+                               << "    ; /Falls\n";
                     
                     gen.gen_scope(s->scope);
-                    gen.m_temp << label << ":\n";
+
+                    gen.m_temp << "\n";
+
+                    gen.m_temp << label << ":";
                 }
             };
             
@@ -297,9 +317,9 @@ class Generator
             return std::nullopt;
         }
 
-        size_t temp_mem_loc(bool offset = false) const
+        size_t mem_loc()
         {
-            return (m_mem_size + (offset ? 1 : 0)) * 8;
+            return m_mem_size * 8;
         }
 
         void track_mem()
