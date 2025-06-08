@@ -10,97 +10,9 @@
 
 #include <fstream>
 
+#include "ast.hpp"
 #include "arena.hpp"
 #include "tokenizer.hpp"
-
-// Integer Literal Node
-struct NodeTermIntLit
-{
-    Token int_lit;
-};
-
-// Identifier (variable) Node
-struct NodeTermIdent
-{
-    Token ident;
-};
-
-struct NodeExpr; // Forward Declaration
-
-// Parenthesized Expression Node
-struct NodeTermParen
-{
-    NodeExpr* expr;
-};
-
-// Binary Operators
-enum class BinOp
-{
-    Add,
-    Sub,
-    Mul,
-    Div
-};
-
-// Binary Expression Node
-struct NodeBinExpr
-{
-    BinOp op;
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-// Term Node
-struct NodeTerm
-{
-    std::variant<NodeTermIntLit*, NodeTermIdent*, NodeTermParen*> var;
-};
-
-// Expression Node
-struct NodeExpr
-{
-    std::variant<NodeTerm*, NodeBinExpr*> var;
-};
-
-// Return Statement Node
-struct NodeStmtBeende
-{
-    NodeExpr* expr;
-};
-
-// Assignment Statement Node
-struct NodeStmtBestimme
-{
-    Token ident;
-    NodeExpr* expr;
-};
-
-struct NodeStmt; // Forward Declaration
-
-// Block Scope Node
-struct NodeScope
-{
-    std::vector<NodeStmt*> stmts;
-};
-
-// If Statement Node
-struct NodeStmtFalls
-{
-    NodeExpr* expr;
-    NodeScope* scope;
-};
-
-// Statement Node
-struct NodeStmt
-{
-    std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*, NodeStmtFalls*> var;
-};
-
-// Program Root Node
-struct NodeProg
-{
-    std::vector<NodeStmt*> stmts;
-};
 
 class Parser
 {
@@ -113,7 +25,7 @@ class Parser
 
         std::optional<NodeTerm*> parse_term()
         {
-            if (auto int_lit = try_consume(1, TokenType::int_lit))
+            if (auto int_lit = try_consume(TokenType::int_lit))
             {
                 auto term_int_lit = m_allocator.alloc<NodeTermIntLit>();
                 term_int_lit->int_lit = int_lit.value();
@@ -124,7 +36,7 @@ class Parser
                 return term;
             }
             
-            if (auto ident = try_consume(1, TokenType::ident))
+            if (auto ident = try_consume(TokenType::ident))
             {
                 auto term_ident = m_allocator.alloc<NodeTermIdent>();
                 term_ident->ident = ident.value();
@@ -135,7 +47,7 @@ class Parser
                 return term;
             }
             
-            if (auto open_paren = try_consume(1, TokenType::open_paren))
+            if (auto open_paren = try_consume(TokenType::open_paren))
             {
                 auto expr = parse_expr();
 
@@ -146,7 +58,7 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::close_paren, "Fehler: Token ')' wird erwartet");
+                try_consume(TokenType::close_paren, "Fehler: Token ')' wird erwartet");
 
                 auto term_paren = m_allocator.alloc<NodeTermParen>();
                 term_paren->expr = expr.value();
@@ -172,7 +84,7 @@ class Parser
         
             while (true)
             {
-                auto curr_tok = peek(1);
+                auto curr_tok = peek();
                 auto prec = curr_tok ? bin_prec(curr_tok->type) : std::nullopt;
             
                 if (!prec.has_value() || prec.value() < min_prec)
@@ -224,7 +136,7 @@ class Parser
 
         std::optional<NodeScope*> parse_scope()
         {
-            if (!try_consume(1, TokenType::open_curly).has_value())
+            if (!try_consume(TokenType::open_curly).has_value())
             {
                 return std::nullopt;
             }
@@ -236,19 +148,19 @@ class Parser
                 scope->stmts.push_back(stmt.value());
             }
 
-            try_consume(1, TokenType::close_curly, "Fehler: Token '}' wird erwartet");
+            try_consume(TokenType::close_curly, "Fehler: Token '}' wird erwartet");
 
             return scope;
         }
 
         std::optional<NodeStmt*> parse_stmt()
         {
-            if (try_consume(1, TokenType::Bestimme))
+            if (try_consume(TokenType::Bestimme))
             {
                 auto stmt_Bestimme = m_allocator.alloc<NodeStmtBestimme>();
-                stmt_Bestimme->ident = try_consume(1, TokenType::ident, "Fehler: Bezeichner wird erwartet");
+                stmt_Bestimme->ident = try_consume(TokenType::ident, "Fehler: Bezeichner wird erwartet");
 
-                try_consume(1, TokenType::als, "Fehler: Token 'als' wird erwartet");
+                try_consume(TokenType::als, "Fehler: Token 'als' wird erwartet");
 
                 if (const auto expr = parse_expr())
                 {
@@ -261,7 +173,7 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::dot, "Fehler: Token '.' wird erwartet");
+                try_consume(TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = stmt_Bestimme;
@@ -269,7 +181,7 @@ class Parser
                 return stmt;
             }
             
-            if (try_consume(1, TokenType::Beende))
+            if (try_consume(TokenType::Beende))
             {
                 auto stmt_Beende = m_allocator.alloc<NodeStmtBeende>();
                 
@@ -284,7 +196,7 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::dot, "Fehler: Token '.' wird erwartet");
+                try_consume(TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = stmt_Beende;
@@ -292,7 +204,7 @@ class Parser
                 return stmt;
             }
             
-            if (peek(1).has_value() && peek(1).value().type == TokenType::open_curly)
+            if (peek().has_value() && peek().value().type == TokenType::open_curly)
             {
                 if (const auto scope = parse_scope())
                 {
@@ -309,11 +221,11 @@ class Parser
                 }
             }
             
-            if (try_consume(1, TokenType::falls))
+            if (try_consume(TokenType::falls))
             {
                 auto stmt_falls = m_allocator.alloc<NodeStmtFalls>();
                 
-                try_consume(1, TokenType::open_paren, "Fehler: Token '(' wird erwartet");
+                try_consume(TokenType::open_paren, "Fehler: Token '(' wird erwartet");
                 
                 if (const auto expr = parse_expr())
                 {
@@ -326,8 +238,8 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
 
-                try_consume(1, TokenType::close_paren, "Fehler: Token ')' wird erwartet");
-                try_consume(1, TokenType::dann, "Fehler: Token 'dann' wird erwartet");
+                try_consume(TokenType::close_paren, "Fehler: Token ')' wird erwartet");
+                try_consume(TokenType::dann, "Fehler: Token 'dann' wird erwartet");
 
                 if (const auto scope = parse_scope())
                 {
@@ -353,7 +265,7 @@ class Parser
         {
             NodeProg prog;
 
-            while (peek(1).has_value())
+            while (peek().has_value())
             {
                 if (auto stmt = parse_stmt())
                 {
@@ -371,19 +283,29 @@ class Parser
         }
 
     private:
-        [[nodiscard]] std::optional<Token> peek(const size_t& offset) const
+        [[nodiscard]] std::optional<Token> peek(const size_t& offset = 0) const
         {
-            if (m_index + (offset - 1) >= m_tokens.size())
+            if (m_index + offset >= m_tokens.size())
             {
                 return std::nullopt;
             }
             
-            return m_tokens.at(m_index + (offset - 1));
+            return m_tokens.at(m_index + offset);
         }
         
         Token consume()
         {
             return m_tokens.at(m_index++);
+        }
+
+        std::optional<Token> try_consume(const TokenType& type)
+        {
+            if (peek().has_value() && peek().value().type == type)
+            {
+                return consume();
+            }
+            
+            return std::nullopt;
         }
 
         std::optional<Token> try_consume(const size_t& offset, const TokenType& type)
@@ -394,6 +316,18 @@ class Parser
             }
             
             return std::nullopt;
+        }
+
+        Token try_consume(const TokenType& type, const std::string& err_msg)
+        {
+            if (peek().has_value() && peek().value().type == type)
+            {
+                return consume();
+            }
+
+            std::cerr << err_msg << std::endl;
+                
+            exit(EXIT_FAILURE);
         }
 
         Token try_consume(const size_t& offset, const TokenType& type, const std::string& err_msg)

@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
     
     if (ret != 0)
     {
-        std::cerr << "Fehler: NASM-Assembler konnte nicht erfolgreich ausgeführt werden" << std::endl;
+        std::cerr << "Fehler: NASM-Assembler konnte nicht erfolgreich ausgeführt werden (" << ret << ")" << std::endl;
         
         return EXIT_FAILURE;
     }

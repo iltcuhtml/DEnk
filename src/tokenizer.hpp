@@ -13,7 +13,7 @@ enum class TokenType
     ident, int_lit, dot, als, gleich, ungleich, 
     größer, kleiner, und, oder, nicht, 
     plus, minus, star, slash, 
-    open_paren, close_paren, open_curly, close_curly, 
+    open_paren, close_paren, open_curly, close_curly
 };
 
 inline std::optional<size_t>bin_prec(const TokenType type)
@@ -57,9 +57,9 @@ class Tokenizer
 
             std::vector<Token> tokens;
 
-            while (peek(1).has_value())
+            while (peek().has_value())
             {
-                char32_t ch = peek(1).value();
+                char32_t ch = peek().value();
 
                 if (is_alpha(ch))
                 {
@@ -99,8 +99,45 @@ class Tokenizer
                         tokens.push_back({ .type = TokenType::star });
                     
                     else if (one_char == "/")
-                        tokens.push_back({ .type = TokenType::slash });
-                    
+                    {
+                        if (peek().has_value())
+                        {
+                            if (peek().value() == U'/')
+                                consume_while([&](char32_t c) { return c != U'\n'; });
+
+                            else if (peek().value() == U'*')
+                            {
+                                consume(); // consume '/'
+                                consume(); // consume '*'
+
+                                while (true)
+                                {
+                                    consume_while([&](char32_t c) { return c != U'*'; });
+                                
+                                    if (!peek().has_value())
+                                    {
+                                        std::cerr << "Fehler: Mehrzeiliger Kommentar wurde nicht korrekt geschlossen (erwartetes '*/')\n";
+
+                                        exit(EXIT_FAILURE);
+                                    }
+                                
+                                    if (peek().value() == U'*')
+                                    {
+                                        consume(); // consume '*'
+                                    
+                                        if (peek().has_value() && peek().value() == U'/')
+                                        {
+                                            consume(); // consume '/'
+
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else
+                            tokens.push_back({ .type = TokenType::slash });
+                    }
                     else if (one_char == "(")
                         tokens.push_back({ .type = TokenType::open_paren });
                     
@@ -133,15 +170,15 @@ class Tokenizer
         {
             std::string result;
 
-            while (peek(1).has_value() && pred(peek(1).value()))
+            while (peek().has_value() && pred(peek().value()))
                 result += consume();
             
             return result;
         }
 
-        std::optional<char32_t> peek(const size_t& offset) const
+        std::optional<char32_t> peek(const size_t& offset = 0) const
         {
-            size_t peek_index = m_index + (offset - 1);
+            size_t peek_index = m_index + offset;
             
             if (peek_index >= m_src.size())
                 return std::nullopt;
@@ -187,7 +224,7 @@ class Tokenizer
                 len = 4;
 
             std::string result = m_src.substr(m_index, len);
-            
+
             m_index += len;
 
             return result;

@@ -22,12 +22,12 @@ class Generator
         std::string gen_prog()
         {
             m_output << "section .text\n";
-            m_output << "    global _start\n\n";        
+            m_output << "    global main\n\n";        
             
             for (const NodeStmt* stmt : m_prog.stmts)
                 gen_stmt(stmt);
             
-            m_output << "\n_start:\n";
+            m_output << "\nmain:\n";
             m_output << "    push rbp\n";
             m_output << "    mov rbp, rsp\n";
             m_output << "    sub rsp, "
@@ -71,6 +71,10 @@ class Generator
                 void operator()(const NodeTerm* term) const { gen.gen_term(term); }
 
                 void operator()(const NodeBinExpr* bin_expr) const { gen.gen_bin_expr(bin_expr); }
+
+                void operator()(NodeLogicExpr* node) const {
+                    (void) node;
+                }
             };
 
             std::visit(Visitor{ *this }, expr->var);
@@ -100,7 +104,7 @@ class Generator
                     
                     if (it == gen.m_vars.cend())
                     {
-                        std::cerr << "Fehler: Bezeichner '" << t->ident.value.value() << "' ist nicht deklariert\n";
+                        std::cerr << "Fehler: Bezeichner '" << t->ident.value.value() << "' ist nicht deklariert" << std::endl;
 
                         exit(EXIT_FAILURE);
                     }
@@ -163,7 +167,7 @@ class Generator
                     binary_op(bin_expr->lhs, bin_expr->rhs, "div");
                     
                     break;
-                    
+
                 default:
                     // Handle error or unsupported operation
                     break;
@@ -184,14 +188,14 @@ class Generator
                     gen.gen_expr(s->expr);
                     gen.consume_var("rcx", gen.temp_mem_loc());
 
-                    gen.m_temp << "    call ExitProcess\n";
+                    gen.m_temp << "    call ExitProcess";
                 }
 
                 void operator()(const NodeStmtBestimme* s) const
                 {
                     if (gen.find_var(s->ident.value.value()))
                     {
-                        std::cerr << "Fehler: Bezeichner '" << s->ident.value.value() << "' wird bereits verwendet\n";
+                        std::cerr << "Fehler: Bezeichner '" << s->ident.value.value() << "' wird bereits verwendet" << std::endl;
                         
                         exit(EXIT_FAILURE);
                     }
@@ -236,7 +240,7 @@ class Generator
         /* Assembly Helpers */
         void store_value(size_t mem, const std::string& val)
         {
-            m_temp << "    mov QWORD [rbp - " << mem << "], " << val << "\n";
+            m_temp << "    mov QWORD [rbp - " << mem + 8 << "], " << val << "\n";
             
             track_mem();
         }
