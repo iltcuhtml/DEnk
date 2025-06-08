@@ -9,11 +9,13 @@
 
 enum class TokenType
 {
-    Bestimme, falls, sonst, dann, Beende, 
-    ident, int_lit, dot, als, gleich, ungleich, 
-    größer, kleiner, und, oder, nicht, 
-    plus, minus, star, slash, 
-    open_paren, close_paren, open_curly, close_curly
+    ident, int_lit, 
+    dot, plus, minus, star, slash, 
+    open_paren, close_paren, open_curly, close_curly, 
+    Bestimme, als, 
+    Ändere, zu, 
+    Falls, Sonst, Dann, gleich, ungleich, größer, kleiner, und, oder, nicht, 
+    Beende, 
 };
 
 inline std::optional<size_t>bin_prec(const TokenType type)
@@ -47,12 +49,21 @@ class Tokenizer
         std::vector<Token> tokenize()
         {
             static const std::unordered_map<std::string, TokenType> keywords = {
-                {"Bestimme", TokenType::Bestimme}, {"falls", TokenType::falls}, 
-                {"sonst", TokenType::sonst}, {"dann", TokenType::dann}, 
-                {"Beende", TokenType::Beende}, {"als", TokenType::als}, 
+                {"Bestimme", TokenType::Bestimme}, {"bestimme", TokenType::Bestimme}, 
+                {"als", TokenType::als}, 
+                
+                {"Ändere", TokenType::Ändere}, {"ändere", TokenType::Ändere}, 
+                {"zu", TokenType::zu}, 
+                
+                {"Falls", TokenType::Falls}, {"falls", TokenType::Falls}, 
+                {"Sonst", TokenType::Sonst}, {"sonst", TokenType::Sonst}, 
+                {"Dann", TokenType::Dann}, {"dann", TokenType::Dann}, 
+
                 {"gleich", TokenType::gleich}, {"ungleich", TokenType::ungleich}, 
                 {"größer", TokenType::größer}, {"kleiner", TokenType::kleiner}, 
-                {"und", TokenType::und}, {"oder", TokenType::oder}, {"nicht", TokenType::nicht}
+                {"und", TokenType::und}, {"oder", TokenType::oder}, {"nicht", TokenType::nicht}, 
+
+                {"Beende", TokenType::Beende}, {"beende", TokenType::Beende}, 
             };
 
             std::vector<Token> tokens;

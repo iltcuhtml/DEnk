@@ -221,7 +221,7 @@ class Parser
                 }
             }
             
-            if (try_consume(TokenType::falls))
+            if (try_consume(TokenType::Falls))
             {
                 auto stmt_falls = m_allocator.alloc<NodeStmtFalls>();
                 
@@ -239,7 +239,7 @@ class Parser
                 }
 
                 try_consume(TokenType::close_paren, "Fehler: Token ')' wird erwartet");
-                try_consume(TokenType::dann, "Fehler: Token 'dann' wird erwartet");
+                try_consume(TokenType::Dann, "Fehler: Token 'Dann' wird erwartet");
 
                 if (const auto scope = parse_scope())
                 {

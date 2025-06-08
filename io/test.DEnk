@@ -1,12 +1,11 @@
 Bestimme Var als 69.
 
+Falls (Var gleich 69) dann {
+    Ändere Var zu Var + 1.
+}
 
-// falls (Var gleich 69) dann {
-    Var = Var + 1.
-// }
-
-// falls (Var kleiner 420) dann {
-    Var = Var + 4.
-// }
+Falls (Var kleiner 420) dann {
+    Ändere Var zu Var + 4.
+}
 
 Beende Var.
