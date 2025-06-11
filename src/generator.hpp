@@ -72,9 +72,7 @@ class Generator
 
                 void operator()(const NodeBinExpr* bin_expr) const { gen.gen_bin_expr(bin_expr); }
 
-                void operator()(NodeLogicExpr* node) const {
-                    (void) node;
-                }
+                void operator()(NodeLogicExpr* logic_expr) const { gen.gen_logic_expr(logic_expr); }
             };
 
             std::visit(Visitor{ *this }, expr->var);
@@ -177,6 +175,13 @@ class Generator
                     break;
             }
         }
+
+        void gen_logic_expr(const NodeLogicExpr* logic_expr)
+        {
+            (void) logic_expr;
+
+            // TODO
+        }
         
         /* Statement Generation */
         void gen_stmt(const NodeStmt* stmt)
@@ -185,17 +190,9 @@ class Generator
             {
                 Generator& gen;
 
-                void operator()(const NodeStmtBeende* s) const
+                void operator()(const NodeScope* scope) const
                 {
-                    gen.declare_extern_once("ExitProcess");
-
-                    gen.m_temp << "\n    ; ExitProcess\n";
-
-                    gen.gen_expr(s->expr);
-                    gen.consume_var("rcx", gen.mem_loc());
-
-                    gen.m_temp << "    call ExitProcess\n"
-                               << "    ; /ExitProcess\n";
+                    gen.gen_scope(scope);
                 }
 
                 void operator()(const NodeStmtBestimme* s) const
@@ -215,9 +212,11 @@ class Generator
                     gen.m_temp << "    ; /Bestimme\n";
                 }
 
-                void operator()(const NodeScope* scope) const
+                void operator()(const NodeStmtÄndere* s) const
                 {
-                    gen.gen_scope(scope);
+                    (void) s;
+                    
+                    // TODO
                 }
 
                 void operator()(const NodeStmtFalls* s) const
@@ -241,6 +240,19 @@ class Generator
                     gen.m_temp << "\n";
 
                     gen.m_temp << label << ":";
+                }
+
+                void operator()(const NodeStmtBeende* s) const
+                {
+                    gen.declare_extern_once("ExitProcess");
+
+                    gen.m_temp << "\n    ; ExitProcess\n";
+
+                    gen.gen_expr(s->expr);
+                    gen.consume_var("rcx", gen.mem_loc());
+
+                    gen.m_temp << "    call ExitProcess\n"
+                               << "    ; /ExitProcess\n";
                 }
             };
             

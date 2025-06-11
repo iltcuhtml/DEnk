@@ -101,34 +101,71 @@ class Parser
                     
                     exit(EXIT_FAILURE);
                 }
-            
-                auto bin_expr = m_allocator.alloc<NodeBinExpr>();
-            
-                bin_expr->lhs = expr_lhs;
-            
-                if (type == TokenType::plus)
-                    bin_expr->op = BinOp::Add;
 
-                else if (type == TokenType::minus)
-                    bin_expr->op = BinOp::Sub;
-
-                else if (type == TokenType::star)
-                    bin_expr->op = BinOp::Mul;
-
-                else if (type == TokenType::slash)
-                    bin_expr->op = BinOp::Div;
-
-                else
-                {
-                    std::cerr << "Fehler: Ungültiger Binäroperator" << std::endl;
+                if (type == TokenType::plus || type == TokenType::minus || type == TokenType::star || type == TokenType::slash)
+                {            
+                    auto bin_expr = m_allocator.alloc<NodeBinExpr>();
                     
-                    exit(EXIT_FAILURE);
+                    bin_expr->lhs = expr_lhs;
+                    
+                    if (type == TokenType::plus)
+                        bin_expr->op = BinOp::Add;
+
+                    else if (type == TokenType::minus)
+                        bin_expr->op = BinOp::Sub;
+
+                    else if (type == TokenType::star)
+                        bin_expr->op = BinOp::Mul;
+
+                    else if (type == TokenType::slash)
+                        bin_expr->op = BinOp::Div;
+
+                    else
+                    {
+                        std::cerr << "Fehler: Ungültiger Binäroperator" << std::endl;
+
+                        exit(EXIT_FAILURE);
+                    }
+                
+                    bin_expr->rhs = expr_rhs.value();
+                
+                    expr_lhs = m_allocator.alloc<NodeExpr>();
+                    expr_lhs->var = bin_expr;
                 }
-            
-                bin_expr->rhs = expr_rhs.value();
-            
-                expr_lhs = m_allocator.alloc<NodeExpr>();
-                expr_lhs->var = bin_expr;
+                else if (type == TokenType::gleich || type == TokenType::ungleich ||
+                         type == TokenType::kleiner || type == TokenType::größer ||
+                         type == TokenType::und || type == TokenType::oder || type == TokenType::nicht)
+                {
+                    auto logic_expr = m_allocator.alloc<NodeLogicExpr>();
+                    
+                    logic_expr->lhs = expr_lhs;
+
+                    // TODO
+
+                    // if (type == TokenType::)
+                    //     logic_expr->op = LogicOp::;
+
+                    // else if (type == TokenType::)
+                    //     logic_expr->op = LogicOp::;
+
+                    // else if (type == TokenType::)
+                    //     logic_expr->op = LogicOp::;
+
+                    // else if (type == TokenType::)
+                    //     logic_expr->op = LogicOp::;
+
+                    // else
+                    // {
+                    //     std::cerr << "Fehler: Logic_expr 에러 메시지 재작성 필요" << std::endl;
+
+                    //     exit(EXIT_FAILURE);
+                    // }
+                
+                    logic_expr->rhs = expr_rhs.value();
+                
+                    expr_lhs = m_allocator.alloc<NodeExpr>();
+                    expr_lhs->var = logic_expr;
+                }
             }
         
             return expr_lhs;
@@ -155,9 +192,27 @@ class Parser
 
         std::optional<NodeStmt*> parse_stmt()
         {
+            if (peek().has_value() && peek().value().type == TokenType::open_curly)
+            {
+                if (const auto scope = parse_scope())
+                {
+                    auto stmt = m_allocator.alloc<NodeStmt>();
+                    stmt->var = scope.value();
+
+                    return stmt;
+                }
+                else
+                {
+                    std::cerr << "Fehler: Ungültiger Gültigkeitsbereich" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+            }
+
             if (try_consume(TokenType::Bestimme))
             {
                 auto stmt_Bestimme = m_allocator.alloc<NodeStmtBestimme>();
+
                 stmt_Bestimme->ident = try_consume(TokenType::ident, "Fehler: Bezeichner wird erwartet");
 
                 try_consume(TokenType::als, "Fehler: Token 'als' wird erwartet");
@@ -180,18 +235,22 @@ class Parser
 
                 return stmt;
             }
-            
-            if (try_consume(TokenType::Beende))
+
+            if (try_consume(TokenType::Ändere))
             {
-                auto stmt_Beende = m_allocator.alloc<NodeStmtBeende>();
-                
-                if (const auto node_expr = parse_expr())
+                auto stmt_Ändere = m_allocator.alloc<NodeStmtÄndere>();
+
+                stmt_Ändere->ident = try_consume(TokenType::ident, "Fehler: Bezeichner wird erwartet");
+
+                try_consume(TokenType::zu, "Fehler: Token 'zu' wird erwartet");
+
+                if (const auto expr = parse_expr())
                 {
-                    stmt_Beende->expr = node_expr.value();
+                    stmt_Ändere->expr = expr.value();
                 }
                 else
                 {
-                    std::cerr << "Fehler: Ungültiger 'Beende'-Ausdruck" << std::endl;
+                    std::cerr << "Fehler: Ungültiger 'Ändere'-Ausdruck" << std::endl;
                     
                     exit(EXIT_FAILURE);
                 }
@@ -199,26 +258,9 @@ class Parser
                 try_consume(TokenType::dot, "Fehler: Token '.' wird erwartet");
 
                 auto stmt = m_allocator.alloc<NodeStmt>();
-                stmt->var = stmt_Beende;
+                stmt->var = stmt_Ändere;
 
                 return stmt;
-            }
-            
-            if (peek().has_value() && peek().value().type == TokenType::open_curly)
-            {
-                if (const auto scope = parse_scope())
-                {
-                    auto stmt = m_allocator.alloc<NodeStmt>();
-                    stmt->var = scope.value();
-
-                    return stmt;
-                }
-                else
-                {
-                    std::cerr << "Fehler: Ungültiger Gültigkeitsbereich" << std::endl;
-                    
-                    exit(EXIT_FAILURE);
-                }
             }
             
             if (try_consume(TokenType::Falls))
@@ -239,7 +281,7 @@ class Parser
                 }
 
                 try_consume(TokenType::close_paren, "Fehler: Token ')' wird erwartet");
-                try_consume(TokenType::Dann, "Fehler: Token 'Dann' wird erwartet");
+                try_consume(TokenType::dann, "Fehler: Token 'dann' wird erwartet");
 
                 if (const auto scope = parse_scope())
                 {
@@ -252,8 +294,49 @@ class Parser
                     exit(EXIT_FAILURE);
                 }
 
+                if (try_consume(TokenType::Sonst))
+                {
+                    if (const auto falls = parse_stmt())
+                    {
+                        stmt_falls->sonst = falls.value();
+                    }
+                    else
+                    {
+                        std::cerr << "Fehler: falls-sonst 에러 메시지 재작성 필요" << std::endl;
+
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                else
+                    stmt_falls->sonst = std::nullopt;
+
                 auto stmt = m_allocator.alloc<NodeStmt>();
                 stmt->var = stmt_falls;
+
+                return stmt;
+            }
+
+            if (try_consume(TokenType::Beende))
+            {
+                auto stmt_Beende = m_allocator.alloc<NodeStmtBeende>();
+
+                try_consume(TokenType::mit, "Fehler: Token 'mit' wird erwartet");
+                
+                if (const auto node_expr = parse_expr())
+                {
+                    stmt_Beende->expr = node_expr.value();
+                }
+                else
+                {
+                    std::cerr << "Fehler: Ungültiger 'Beende'-Ausdruck" << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+
+                try_consume(TokenType::dot, "Fehler: Token '.' wird erwartet");
+
+                auto stmt = m_allocator.alloc<NodeStmt>();
+                stmt->var = stmt_Beende;
 
                 return stmt;
             }

@@ -14,8 +14,8 @@ enum class TokenType
     open_paren, close_paren, open_curly, close_curly, 
     Bestimme, als, 
     Ändere, zu, 
-    Falls, Sonst, Dann, gleich, ungleich, größer, kleiner, und, oder, nicht, 
-    Beende, 
+    Falls, Sonst, dann, gleich, ungleich, kleiner, größer, und, oder, nicht, 
+    Beende, mit, 
 };
 
 inline std::optional<size_t>bin_prec(const TokenType type)
@@ -50,20 +50,25 @@ class Tokenizer
         {
             static const std::unordered_map<std::string, TokenType> keywords = {
                 {"Bestimme", TokenType::Bestimme}, {"bestimme", TokenType::Bestimme}, 
-                {"als", TokenType::als}, 
+                {"als", TokenType::als}, {"Als", TokenType::als}, 
                 
                 {"Ändere", TokenType::Ändere}, {"ändere", TokenType::Ändere}, 
-                {"zu", TokenType::zu}, 
+                {"zu", TokenType::zu}, {"Zu", TokenType::zu}, 
                 
                 {"Falls", TokenType::Falls}, {"falls", TokenType::Falls}, 
                 {"Sonst", TokenType::Sonst}, {"sonst", TokenType::Sonst}, 
-                {"Dann", TokenType::Dann}, {"dann", TokenType::Dann}, 
+                {"dann", TokenType::dann}, {"Dann", TokenType::dann}, 
 
-                {"gleich", TokenType::gleich}, {"ungleich", TokenType::ungleich}, 
-                {"größer", TokenType::größer}, {"kleiner", TokenType::kleiner}, 
-                {"und", TokenType::und}, {"oder", TokenType::oder}, {"nicht", TokenType::nicht}, 
+                {"gleich", TokenType::gleich}, {"Gleich", TokenType::gleich}, 
+                {"ungleich", TokenType::ungleich}, {"Ungleich", TokenType::ungleich}, 
+                {"kleiner", TokenType::kleiner}, {"Kleiner", TokenType::kleiner}, 
+                {"größer", TokenType::größer}, {"Größer", TokenType::größer}, 
+                {"und", TokenType::und}, {"Und", TokenType::und}, 
+                {"oder", TokenType::oder}, {"Oder", TokenType::oder}, 
+                {"nicht", TokenType::nicht}, {"Nicht", TokenType::nicht}, 
 
                 {"Beende", TokenType::Beende}, {"beende", TokenType::Beende}, 
+                {"mit", TokenType::mit}, {"Mit", TokenType::mit}, 
             };
 
             std::vector<Token> tokens;

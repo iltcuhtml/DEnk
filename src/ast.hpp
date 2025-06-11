@@ -64,10 +64,12 @@ struct NodeExpr
     std::variant<NodeTerm*, NodeBinExpr*, NodeLogicExpr*> var;
 };
 
-/* Return Statement Node */
-struct NodeStmtBeende
+struct NodeStmt; // Forward Declaration
+
+/* Block Scope Node */
+struct NodeScope
 {
-    NodeExpr* expr;
+    std::vector<NodeStmt*> stmts;
 };
 
 /* Assignment Statement Node */
@@ -77,12 +79,11 @@ struct NodeStmtBestimme
     NodeExpr* expr;
 };
 
-struct NodeStmt; // Forward Declaration
-
-/* Block Scope Node */
-struct NodeScope
+/* Change Statement Node */
+struct NodeStmtÄndere
 {
-    std::vector<NodeStmt*> stmts;
+    Token ident;
+    NodeExpr* expr;
 };
 
 /* If Statement Node */
@@ -90,13 +91,19 @@ struct NodeStmtFalls
 {
     NodeExpr* expr;
     NodeScope* scope;
-    NodeStmtFalls* falls;
+    std::optional<NodeStmt*> sonst;
+};
+
+/* Exit Statement Node */
+struct NodeStmtBeende
+{
+    NodeExpr* expr;
 };
 
 /* Statement Node */
 struct NodeStmt
 {
-    std::variant<NodeStmtBeende*, NodeStmtBestimme*, NodeScope*, NodeStmtFalls*> var;
+    std::variant<NodeScope*, NodeStmtBestimme*, NodeStmtÄndere*, NodeStmtFalls*, NodeStmtBeende*> var;
 };
 
 /* Program Root Node */
