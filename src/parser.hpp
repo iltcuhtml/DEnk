@@ -142,10 +142,10 @@ class Parser
 
                     // TODO
 
-                    // if (type == TokenType::)
-                    //     logic_expr->op = LogicOp::;
+                    // if (type == TokenType::gleich)
+                    //     logic_expr->op = LogicOp::Equal;
 
-                    // else if (type == TokenType::)
+                    // else if (type == TokenType::ungleich || )
                     //     logic_expr->op = LogicOp::;
 
                     // else if (type == TokenType::)
